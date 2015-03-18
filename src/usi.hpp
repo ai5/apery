@@ -59,4 +59,6 @@ void doUSICommandLoop(int argc, char* argv[]);
 Move csaToMove(const Position& pos, const std::string& moveStr);
 Move usiToMove(const Position& pos, const std::string& moveStr);
 
+extern const std::string engine_name();
+
 #endif // #ifndef USI_HPP

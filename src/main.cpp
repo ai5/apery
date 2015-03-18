@@ -32,6 +32,9 @@ int main() {
 #else
 // 将棋を指すソフト
 int main(int argc, char* argv[]) {
+	
+	std::cout << engine_name() << std::endl;
+	
 	initTable();
 	Position::initZobrist();
 	g_threads.init();

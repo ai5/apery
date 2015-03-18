@@ -71,7 +71,7 @@ OptionsMap::OptionsMap() {
 	const int cpus = cpuCoreCount();
 	const int minSplitDepth = (cpus < 6 ? 4 : (cpus < 8 ? 5 : 7));
 	(*this)["Use_Search_Log"]              = USIOption(false);
-	(*this)["USI_Hash"]                    = USIOption(32, 1, 65536, onHashSize);
+	(*this)["USI_Hash"]                    = USIOption(256, 1, 65536, onHashSize);
 	(*this)["Clear_Hash"]                  = USIOption(onClearHash);
 	(*this)["Book_File"]                   = USIOption("../bin/book.bin");
 	(*this)["Inaniwa_Book_File"]           = USIOption("../bin/inaniwabook.bin");
@@ -82,11 +82,11 @@ OptionsMap::OptionsMap() {
 	(*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
 	(*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
 	(*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
-	(*this)["USI_Ponder"]                  = USIOption(true);
+	(*this)["USI_Ponder"]                  = USIOption(false);
 	(*this)["MultiPV"]                     = USIOption(1, 1, 500);
 	(*this)["Skill_Level"]                 = USIOption(20, 0, 20);
 	(*this)["Max_Random_Score_Diff"]       = USIOption(0, 0, ScoreMate0Ply);
-	(*this)["Max_Random_Score_Diff_Ply"]   = USIOption(40, SHRT_MIN, SHRT_MAX);
+	(*this)["Max_Random_Score_Diff_Ply"]   = USIOption(SHRT_MAX, SHRT_MIN, SHRT_MAX);
 	(*this)["Emergency_Move_Horizon"]      = USIOption(40, 0, 50);
 	(*this)["Emergency_Base_Time"]         = USIOption(200, 0, 30000);
 	(*this)["Emergency_Move_Time"]         = USIOption(70, 0, 5000);
@@ -470,7 +470,7 @@ void doUSICommandLoop(int argc, char* argv[]) {
 			}
 			for (int i = 0; i < 100; ++i) g_randomTimeSeed(); // 最初は乱数に偏りがあるかも。少し回しておく。
 		}
-		else if (token == "usi"      ) { SYNCCOUT << "id name " << MyName
+		else if (token == "usi"      ) { SYNCCOUT << "id name " << engine_name()
 												  << "\nid author Hiraoka Takuya"
 												  << "\n" << g_options
 												  << "\nusiok" << SYNCENDL; }
@@ -496,3 +496,26 @@ void doUSICommandLoop(int argc, char* argv[]) {
 
 	g_threads.waitForThinkFinished();
 }
+
+// エンジン情報
+const std::string engine_name()
+{
+#ifdef HAVE_BMI2
+	const std::string tag = "bmi2";
+#elif defined(HAVE_SSE42)
+	const std::string tag = "sse4.2";
+#elif defined(HAVE_SSE4)
+	const std::string tag = "sse4.1";
+#else
+	const std::string tag = "nosse";
+#endif
+    
+#ifdef IS_64BIT
+	const std::string cpu = "";
+#else
+	const std::string cpu = "32bit";
+#endif
+	
+	return MyName + " " + tag + " " + cpu;
+}
+

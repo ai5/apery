@@ -52,6 +52,10 @@
 #include <emmintrin.h>
 #endif
 
+#if defined(_WIN64)
+#  define IS_64BIT
+#endif
+
 #if !defined(NDEBUG)
 // デバッグ時は、ここへ到達してはいけないので、assert でプログラムを止める。
 #define UNREACHABLE assert(false)
