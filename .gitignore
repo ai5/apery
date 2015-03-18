@@ -4,3 +4,4 @@ obj/
 src/apery.exe
 utils/bonanzatoapery/bonanzatoapery.exe
 utils/bonanzatoapery/fv38.bin
+src/apery*.exe
