@@ -1,4 +1,4 @@
-#ifndef MOVE_HPP
+﻿#ifndef MOVE_HPP
 #define MOVE_HPP
 
 #include "common.hpp"

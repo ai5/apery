@@ -1,4 +1,4 @@
-#ifndef MOVEPICKER_HPP
+﻿#ifndef MOVEPICKER_HPP
 #define MOVEPICKER_HPP
 
 #include "move.hpp"

@@ -1,4 +1,4 @@
-#ifndef BENCHMARK_HPP
+﻿#ifndef BENCHMARK_HPP
 #define BENCHMARK_HPP
 
 #include "common.hpp"

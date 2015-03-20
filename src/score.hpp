@@ -1,4 +1,4 @@
-#ifndef SCORE_HPP
+﻿#ifndef SCORE_HPP
 #define SCORE_HPP
 
 #include "overloadEnumOperators.hpp"

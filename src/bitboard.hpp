@@ -1,4 +1,4 @@
-#ifndef BITBOARD_HPP
+﻿#ifndef BITBOARD_HPP
 #define BITBOARD_HPP
 
 #include "common.hpp"

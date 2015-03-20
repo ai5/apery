@@ -1,4 +1,4 @@
-#ifndef SEARCH_HPP
+﻿#ifndef SEARCH_HPP
 #define SEARCH_HPP
 
 #include "move.hpp"

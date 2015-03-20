@@ -1,4 +1,4 @@
-#ifndef USI_HPP
+﻿#ifndef USI_HPP
 #define USI_HPP
 
 #include "common.hpp"

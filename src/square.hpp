@@ -1,4 +1,4 @@
-#ifndef SQUARE_HPP
+﻿#ifndef SQUARE_HPP
 #define SQUARE_HPP
 
 #include "overloadEnumOperators.hpp"

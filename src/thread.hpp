@@ -1,4 +1,4 @@
-#ifndef THREAD_HPP
+﻿#ifndef THREAD_HPP
 #define THREAD_HPP
 
 #include "common.hpp"

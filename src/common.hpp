@@ -1,10 +1,10 @@
-#ifndef COMMON_HPP
+﻿#ifndef COMMON_HPP
 #define COMMON_HPP
 
 #if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
 #include <inttypes.h>
-#define INT64_C(val) val##i64
-#define UINT64_C(val) val##ui64
+// #define INT64_C(val) val##i64
+// #define UINT64_C(val) val##ui64
 #elif defined(__INTEL_COMPILER)
 #include <inttypes.h>
 #define INT64_C(val) val##ll
@@ -79,6 +79,17 @@
 #else
 #define FORCE_INLINE inline
 #endif
+
+#if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+#define CONSTEXPR
+#elif defined(__INTEL_COMPILER)
+#define CONSTEXPR constexpr
+#elif defined(__GNUC__)
+#define CONSTEXPR constexpr
+#else
+#define CONSTEXPR constexpr
+#endif
+
 
 // インラインアセンブリのコメントを使用することで、
 // C++ コードのどの部分がアセンブラのどの部分に対応するかを
@@ -270,7 +281,7 @@ public:
 	int elapsed() const {
 		using std::chrono::duration_cast;
 		using std::chrono::milliseconds;
-		return duration_cast<milliseconds>(std::chrono::system_clock::now() - t_).count();
+		return static_cast<int>( duration_cast<milliseconds>(std::chrono::system_clock::now() - t_).count());
 	}
 	static Time currentTime() {
 		Time t;

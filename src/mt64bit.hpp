@@ -1,4 +1,4 @@
-#ifndef MT64BIT_HPP
+﻿#ifndef MT64BIT_HPP
 #define MT64BIT_HPP
 
 #include "common.hpp"

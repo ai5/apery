@@ -1,4 +1,4 @@
-#ifndef EVALLIST_HPP
+﻿#ifndef EVALLIST_HPP
 #define EVALLIST_HPP
 
 #include "square.hpp"

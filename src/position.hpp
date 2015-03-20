@@ -1,4 +1,4 @@
-#ifndef POSITION_HPP
+﻿#ifndef POSITION_HPP
 #define POSITION_HPP
 
 #include "piece.hpp"
@@ -234,7 +234,7 @@ public:
 
 	void setStartPosPly(const Ply ply) { gamePly_ = ply; }
 
-	static constexpr int nlist() { return EvalList::ListSize; }
+	static CONSTEXPR int nlist() { return EvalList::ListSize; }
 	int list0(const int index) const { return evalList_.list0[index]; }
 	int list1(const int index) const { return evalList_.list1[index]; }
 	int squareHandToList(const Square sq) const { return evalList_.squareHandToList[sq]; }

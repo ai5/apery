@@ -1,4 +1,4 @@
-#ifndef EVALUATE_HPP
+﻿#ifndef EVALUATE_HPP
 #define EVALUATE_HPP
 
 #include "overloadEnumOperators.hpp"

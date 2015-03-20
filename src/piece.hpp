@@ -1,4 +1,4 @@
-#ifndef PIECE_HPP
+﻿#ifndef PIECE_HPP
 #define PIECE_HPP
 
 #include "common.hpp"

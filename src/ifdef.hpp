@@ -1,4 +1,4 @@
-#ifndef IFDEF_HPP
+﻿#ifndef IFDEF_HPP
 #define IFDEF_HPP
 
 #if 0

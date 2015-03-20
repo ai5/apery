@@ -1,4 +1,4 @@
-#ifndef LEARNER_HPP
+﻿#ifndef LEARNER_HPP
 #define LEARNER_HPP
 
 #include "position.hpp"

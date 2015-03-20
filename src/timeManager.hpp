@@ -1,4 +1,4 @@
-#ifndef TIMEMANAGER_HPP
+﻿#ifndef TIMEMANAGER_HPP
 #define TIMEMANAGER_HPP
 
 #include "evaluate.hpp"

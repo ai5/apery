@@ -5,3 +5,10 @@ src/apery.exe
 utils/bonanzatoapery/bonanzatoapery.exe
 utils/bonanzatoapery/fv38.bin
 src/apery*.exe
+Apery/Debug/
+Apery/Apery.opensdf
+Apery/Apery.sdf
+Apery/Apery.v12.suo
+Apery/Apery.vcxproj.filters
+Apery/x64/
+Apery/Release/

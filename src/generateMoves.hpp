@@ -1,4 +1,4 @@
-#ifndef GENERATEMOVES_HPP
+﻿#ifndef GENERATEMOVES_HPP
 #define GENERATEMOVES_HPP
 
 #include "common.hpp"

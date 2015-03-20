@@ -1,3 +1,3 @@
-#include "square.hpp"
+﻿#include "square.hpp"
 
 Direction SquareRelation[SquareNum][SquareNum];

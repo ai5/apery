@@ -1,4 +1,4 @@
-#ifndef TT_HPP
+﻿#ifndef TT_HPP
 #define TT_HPP
 
 #include "common.hpp"
