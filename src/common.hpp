@@ -139,7 +139,7 @@ FORCE_INLINE int firstOneFromLSB(const u64 b) {
 FORCE_INLINE int firstOneFromMSB(const u64 b) {
 	unsigned long index;
 	_BitScanReverse64(&index, b);
-	return index;
+	return 63 - index; // __builtin_clzllに動作を合わせる
 }
 #elif defined(__GNUC__) && ( defined(__i386__) || defined(__x86_64__) )
 FORCE_INLINE int firstOneFromLSB(const u64 b) {
