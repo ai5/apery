@@ -214,7 +214,7 @@ inline bool canPromote(const Color c, const Rank fromOrToRank) {
 #if 1
 	STATIC_ASSERT(Black == 0);
 	STATIC_ASSERT(Rank9 == 0);
-	return static_cast<bool>(0x1c00007u & (1u << ((c << 4) + fromOrToRank)));
+	return (0x1c00007u & (1u << ((c << 4) + fromOrToRank))) != 0;
 #else
 	// 同じ意味。
 	return (c == Black ? isInFrontOf<Black, Rank6, Rank4>(fromOrToRank) : isInFrontOf<White, Rank6, Rank4>(fromOrToRank));

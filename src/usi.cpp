@@ -501,15 +501,19 @@ void doUSICommandLoop(int argc, char* argv[]) {
 const std::string engine_name()
 {
 #ifdef HAVE_BMI2
-	const std::string tag = "bmi2";
+	std::string tag = "bmi2";
 #elif defined(HAVE_SSE42)
-	const std::string tag = "sse4.2";
+	std::string tag = "sse4.2";
 #elif defined(HAVE_SSE4)
-	const std::string tag = "sse4.1";
+	std::string tag = "sse4.1";
 #else
-	const std::string tag = "nosse";
+	std::string tag = "nosse";
 #endif
     
+#ifdef _MSC_VER
+	tag += " msvc";
+#endif
+
 #ifdef IS_64BIT
 	const std::string cpu = "";
 #else

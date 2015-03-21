@@ -3,6 +3,26 @@
 #include "thread.hpp"
 #include "usi.hpp"
 
+namespace {
+
+ // Helpers to launch a thread after creation and joining before delete. Must be
+ // outside Thread c'tor and d'tor because object shall be fully initialized
+ // when virtual idle_loop() is called and when joining.
+ template<typename T> T* new_thread() {
+   T* th = new T();
+   th->handle = std::thread(&Thread::idleLoop, th); // Will go to sleep
+   return th;
+ }
+
+ void delete_thread(Thread* th) {
+   th->exit = true; // Search must be already finished
+   th->notifyOne();
+   th->handle.join(); // Wait for thread termination
+   delete th;
+ }
+
+}
+
 ThreadPool g_threads;
 
 Thread::Thread() /*: splitPoints()*/ {
@@ -15,14 +35,11 @@ Thread::Thread() /*: splitPoints()*/ {
 	idx = g_threads.size();
 
 	// move constructor
-	handle = std::thread(&Thread::idleLoop, this);
+	// コンストラクタ内だとVCで正常に動かない
+//	handle = std::thread(&Thread::idleLoop, this);
 }
 
 Thread::~Thread() {
-	exit = true;
-	notifyOne();
-
-	handle.join(); // Wait for thread termination
 }
 
 extern void checkTime();
@@ -95,18 +112,23 @@ void Thread::waitFor(volatile const bool& b) {
 
 void ThreadPool::init() {
 	sleepWhileIdle_ = true;
-	timer_ = new TimerThread();
-	push_back(new MainThread());
+	timer_ = new_thread<TimerThread>();
+	
+	push_back(new_thread<MainThread>());
 	readUSIOptions();
 }
 
-ThreadPool::~ThreadPool() {
+void ThreadPool::exit()
+{
 	// checkTime() がデータにアクセスしないよう、先に timer_ を delete
-	delete timer_;
+	delete_thread(timer_);
 
 	for (auto elem : *this) {
-		delete elem;
+		delete_thread(elem);
 	}
+}
+
+ThreadPool::~ThreadPool() {
 }
 
 void ThreadPool::readUSIOptions() {
@@ -117,7 +139,7 @@ void ThreadPool::readUSIOptions() {
 	assert(0 < requested);
 
 	while (size() < requested) {
-		push_back(new Thread());
+		push_back(new_thread<Thread>());
 	}
 
 	while (requested < size()) {

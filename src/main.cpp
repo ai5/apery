@@ -34,13 +34,15 @@ int main() {
 int main(int argc, char* argv[]) {
 	
 	std::cout << engine_name() << std::endl;
-	
+
 	initTable();
 	Position::initZobrist();
 	g_threads.init();
 	Searcher::tt.setSize(g_options["USI_Hash"]);
 
 	doUSICommandLoop(argc, argv);
+
+	g_threads.exit(); // main関数が終わるまでにスレッドは終了させる
 }
 
 #endif

@@ -49,7 +49,7 @@ public:
 	OptionsMap();
 	bool isLegalOption(const std::string name) {
 		// count(key) は key が登場する回数を返す。map は重複しないので、count は常に 0 か 1 を返す。
-		return this->count(name);
+		return this->count(name) != 0;
 	}
 };
 

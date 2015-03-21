@@ -78,6 +78,7 @@ struct TimerThread : public Thread {
 class ThreadPool : public std::vector<Thread*> {
 public:
 	void init();
+	void exit();
 	~ThreadPool();
 
 	MainThread* mainThread() { return static_cast<MainThread*>((*this)[0]); }
@@ -89,7 +90,7 @@ public:
 		for (size_t i = 0; i < size(); ++i) {
 			(*this)[i]->maxPly = 0;
 		}
-		sleepWhileIdle_ = g_options["Use_Sleeping_Threads"];
+		sleepWhileIdle_ = g_options["Use_Sleeping_Threads"] != 0;
 	}
 	// 一箇所でしか呼ばないので、FORCE_INLINE
 	FORCE_INLINE void sleep() {
