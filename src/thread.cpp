@@ -143,7 +143,7 @@ void ThreadPool::readUSIOptions() {
 	}
 
 	while (requested < size()) {
-		delete back();
+		delete_thread(back());
 		pop_back();
 	}
 }
