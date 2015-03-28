@@ -1,20 +1,8 @@
-﻿#ifndef COMMON_HPP
-#define COMMON_HPP
-
-#if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
-#include <inttypes.h>
-// #define INT64_C(val) val##i64
-// #define UINT64_C(val) val##ui64
-#elif defined(__INTEL_COMPILER)
-#include <inttypes.h>
-#define INT64_C(val) val##ll
-#define UINT64_C(val) val##ull
-#else
-#include <cinttypes>
-#endif
+﻿#ifndef APERY_COMMON_HPP
+#define APERY_COMMON_HPP
 
 #include "ifdef.hpp"
-
+#include <cinttypes>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -24,6 +12,8 @@
 #include <algorithm>
 #include <iterator>
 #include <map>
+#include <set>
+#include <unordered_map>
 #include <random>
 #include <thread>
 #include <mutex>
@@ -39,8 +29,6 @@
 #include <ctime>
 #include <cmath>
 #include <cstddef>
-
-#define STATIC_ASSERT(x) static_assert(x, "")
 
 #if defined HAVE_BMI2
 #include <immintrin.h>
@@ -109,14 +97,14 @@
 #define DEBUGCERR(x) std::cerr << #x << " = " << (x) << " (L" << __LINE__ << ")" << " " << __FILE__ << std::endl;
 
 // bit幅を指定する必要があるときは、以下の型を使用する。
-typedef  int8_t  s8;
-typedef uint8_t  u8;
-typedef  int16_t s16;
-typedef uint16_t u16;
-typedef  int32_t s32;
-typedef uint32_t u32;
-typedef  int64_t s64;
-typedef uint64_t u64;
+using s8  =  int8_t;
+using u8  = uint8_t;
+using s16 =  int16_t;
+using u16 = uint16_t;
+using s32 =  int32_t;
+using u32 = uint32_t;
+using s64 =  int64_t;
+using u64 = uint64_t;
 
 // Binary表記
 // Binary<11110>::value とすれば、30 となる。
@@ -215,6 +203,15 @@ std::ostream& operator << (std::ostream& os, SyncCout sc);
 #define SYNCCOUT std::cout << IOLock
 #define SYNCENDL std::endl << IOUnlock
 
+#if defined LEARN
+#undef SYNCCOUT
+#undef SYNCENDL
+class Eraser {};
+extern Eraser SYNCCOUT;
+extern Eraser SYNCENDL;
+template <typename T> Eraser& operator << (Eraser& temp, const T&) { return temp; }
+#endif
+
 // N 回ループを展開させる。t は lambda で書くと良い。
 // こんな感じに書くと、lambda がテンプレート引数の数値の分だけ繰り返し生成される。
 // Unroller<5>()([&](const int i){std::cout << i << std::endl;});
@@ -259,7 +256,7 @@ template <typename T> inline void prefetch(T* addr) {
 #endif
 }
 
-typedef u64 Key;
+using Key = u64;
 
 // Size は 2のべき乗であること。
 template <typename T, size_t Size>
@@ -268,7 +265,7 @@ struct HashTable {
 	T* operator [] (const Key k) { return &entries_[static_cast<size_t>(k) & (Size-1)]; }
 	void clear() { std::fill(std::begin(entries_), std::end(entries_), T()); }
 	// Size が 2のべき乗であることのチェック
-	STATIC_ASSERT((Size & (Size-1)) == 0);
+	static_assert((Size & (Size-1)) == 0, "");
 
 private:
 	std::vector<T> entries_;
@@ -306,4 +303,4 @@ template <typename T> inline void reverseEndian(T& r) {
 }
 #endif
 
-#endif // #ifndef COMMON_HPP
+#endif // #ifndef APERY_COMMON_HPP

@@ -1,5 +1,5 @@
-#ifndef COLOR_HPP
-#define COLOR_HPP
+#ifndef APERY_COLOR_HPP
+#define APERY_COLOR_HPP
 
 #include "overloadEnumOperators.hpp"
 
@@ -17,4 +17,4 @@ inline constexpr Color oppositeColor(const Color c) {
 }
 #endif
 
-#endif // #ifndef COLOR_HPP
+#endif // #ifndef APERY_COLOR_HPP

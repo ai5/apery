@@ -1,5 +1,5 @@
-﻿#ifndef POSITION_HPP
-#define POSITION_HPP
+﻿#ifndef APERY_POSITION_HPP
+#define APERY_POSITION_HPP
 
 #include "piece.hpp"
 #include "common.hpp"
@@ -59,21 +59,24 @@ struct StateInfo : public StateInfoMin {
 	Key key() const { return boardKey + handKey; }
 };
 
-typedef std::unique_ptr<std::stack<StateInfo> > StateStackPtr;
+using StateStackPtr = std::unique_ptr<std::stack<StateInfo> >;
 
 class Move;
 struct Thread;
+struct Searcher;
 
 class Position {
 public:
 	Position() {}
+	explicit Position(Searcher* s) : searcher_(s) {}
 	Position(const Position& pos) { *this = pos; }
 	Position(const Position& pos, Thread* th) {
 		*this = pos;
 		thisThread_ = th;
 	}
-	Position(const std::string& sfen, Thread* th) {
+	Position(const std::string& sfen, Thread* th, Searcher* s) {
 		set(sfen, th);
+		setSearcher(s);
 	}
 
 	Position& operator = (const Position& pos);
@@ -168,17 +171,17 @@ public:
 	template <PieceType PT> Bitboard attacksFrom(const Color c, const Square sq, const Bitboard& occupied) const;
 	// 任意の occupied に対する利きを生成する。
 	template <PieceType PT> Bitboard attacksFrom(const Square sq, const Bitboard& occupied) const {
-		STATIC_ASSERT(PT == Bishop || PT == Rook || PT == Horse || PT == Dragon);
+		static_assert(PT == Bishop || PT == Rook || PT == Horse || PT == Dragon, "");
 		// Color は何でも良い。
 		return attacksFrom<PT>(ColorNum, sq, occupied);
 	}
 
 	template <PieceType PT> Bitboard attacksFrom(const Color c, const Square sq) const {
-		STATIC_ASSERT(PT == Gold); // Gold 以外は template 特殊化する。
+		static_assert(PT == Gold, ""); // Gold 以外は template 特殊化する。
 		return goldAttack(c, sq);
 	}
 	template <PieceType PT> Bitboard attacksFrom(const Square sq) const {
-		STATIC_ASSERT(PT == Bishop || PT == Rook || PT == King || PT == Horse || PT == Dragon);
+		static_assert(PT == Bishop || PT == Rook || PT == King || PT == Horse || PT == Dragon, "");
 		// Color は何でも良い。
 		return attacksFrom<PT>(ColorNum, sq);
 	}
@@ -221,7 +224,7 @@ public:
 	Key getKey() const          { return st_->key(); }
 	Key getExclusionKey() const { return st_->key() ^ zobExclusion_; }
 	Key getKeyExcludeTurn() const {
-		STATIC_ASSERT(zobTurn_ == 1);
+		static_assert(zobTurn_ == 1, "");
 		return getKey() >> 1;
 	}
 	void print() const;
@@ -244,6 +247,10 @@ public:
 	const int* cplist0() const { return &evalList_.list0[0]; }
 	const int* cplist1() const { return &evalList_.list1[0]; }
 	const ChangedLists& cl() const { return st_->cl; }
+
+	const Searcher* csearcher() const { return searcher_; }
+	Searcher* searcher() const { return searcher_; }
+	void setSearcher(Searcher* s) { searcher_ = s; }
 
 #if !defined NDEBUG
 	// for debug
@@ -365,6 +372,8 @@ private:
 	Thread* thisThread_;
 	u64 nodes_;
 
+	Searcher* searcher_;
+
 	static Key zobrist_[PieceTypeNum][SquareNum][ColorNum];
 	static const Key zobTurn_ = 1;
 	static Key zobHand_[HandPieceNum][ColorNum];
@@ -408,4 +417,4 @@ public:
 };
 extern const CharToPieceUSI g_charToPieceUSI;
 
-#endif // #ifndef POSITION_HPP
+#endif // #ifndef APERY_POSITION_HPP

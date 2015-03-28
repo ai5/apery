@@ -1,20 +1,26 @@
-﻿#ifndef USI_HPP
-#define USI_HPP
+﻿#ifndef APERY_USI_HPP
+#define APERY_USI_HPP
 
 #include "common.hpp"
 #include "move.hpp"
 
 const std::string DefaultStartPositionSFEN = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
 
+
 struct OptionsMap;
 
 class USIOption {
-	typedef void (Fn)(const USIOption&);
+#if defined(_MSC_VER)
+	typedef void(Fn)(Searcher*, const USIOption&);
+#else
+    using Fn = void (Searcher*, const USIOption&);
+#endif
+
 public:
-	USIOption(Fn* = nullptr);
-	USIOption(const char* v, Fn* = nullptr);
-	USIOption(const bool v, Fn* = nullptr);
-	USIOption(const int v, const int min, const int max, Fn* = nullptr);
+	USIOption(Fn* = nullptr, Searcher* s = nullptr);
+	USIOption(const char* v, Fn* = nullptr, Searcher* s = nullptr);
+	USIOption(const bool v, Fn* = nullptr, Searcher* s = nullptr);
+	USIOption(const int v, const int min, const int max, Fn* = nullptr, Searcher* s = nullptr);
 
 	USIOption& operator = (const std::string& v);
 
@@ -36,8 +42,8 @@ private:
 	std::string type_;
 	int min_;
 	int max_;
-	size_t idx_;
 	Fn* onChange_;
+    Searcher* searcher_;
 };
 
 struct CaseInsensitiveLess {
@@ -46,19 +52,18 @@ struct CaseInsensitiveLess {
 
 struct OptionsMap : public std::map<std::string, USIOption, CaseInsensitiveLess> {
 public:
-	OptionsMap();
+	void init(Searcher* s);
 	bool isLegalOption(const std::string name) {
 		// count(key) は key が登場する回数を返す。map は重複しないので、count は常に 0 か 1 を返す。
 		return this->count(name) != 0;
 	}
 };
 
-extern OptionsMap g_options;
-
-void doUSICommandLoop(int argc, char* argv[]);
+void go(const Position& pos, std::istringstream& ssCmd);
+void setPosition(Position& pos, std::istringstream& ssCmd);
 Move csaToMove(const Position& pos, const std::string& moveStr);
 Move usiToMove(const Position& pos, const std::string& moveStr);
 
 extern const std::string engine_name();
 
-#endif // #ifndef USI_HPP
+#endif // #ifndef APERY_USI_HPP
