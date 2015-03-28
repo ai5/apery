@@ -419,29 +419,16 @@ struct Evaluater : public EvaluaterBase<s16, s32, s32> {
 	void init() {
 		clear();
 		read();
-		setEvaluate();
 	}
 	void read() {
 #define FOO(x) {														\
-			std::ifstream ifs("" #x ".bin", std::ios::binary);			\
+			std::ifstream ifs("../bin/20150327/" #x ".bin", std::ios::binary);			\
 			if (ifs) ifs.read(reinterpret_cast<char*>(x), sizeof(x));	\
 		}
 
-		FOO(kpp);
-		FOO(r_kpp_bb);
-		FOO(r_kpp_hb);
-		FOO(pp);
-		FOO(r_pp_bb);
-		FOO(r_pp_hb);
-		FOO(kp);
-		FOO(kkp);
-		FOO(r_kkp_b);
-		FOO(r_kkp_h);
-		FOO(r_kp_b);
-		FOO(r_kp_h);
-		FOO(kk);
-		FOO(k);
-		FOO(r_kk);
+		FOO(KPP);
+		FOO(KKP);
+		FOO(KK);
 
 #undef FOO
 	}
@@ -451,21 +438,9 @@ struct Evaluater : public EvaluaterBase<s16, s32, s32> {
 			if (ofs) ofs.write(reinterpret_cast<char*>(x), sizeof(x));	\
 		}
 
-		FOO(kpp);
-		FOO(r_kpp_bb);
-		FOO(r_kpp_hb);
-		FOO(pp);
-		FOO(r_pp_bb);
-		FOO(r_pp_hb);
-		FOO(kp);
-		FOO(kkp);
-		FOO(r_kkp_b);
-		FOO(r_kkp_h);
-		FOO(r_kp_b);
-		FOO(r_kp_h);
-		FOO(kk);
-		FOO(k);
-		FOO(r_kk);
+		FOO(KPP);
+		FOO(KKP);
+		FOO(KK);
 
 #undef FOO
 	}
