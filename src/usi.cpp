@@ -175,6 +175,12 @@ void go(const Position& pos, std::istringstream& ssCmd) {
 
 Move usiToMoveBody(const Position& pos, const std::string& moveStr) {
 	Move move;
+
+	if (moveStr == "0000" || moveStr == "pass")
+	{
+		return Move::moveNull();
+	}
+
 	if (g_charToPieceUSI.isLegalChar(moveStr[0])) {
 		// drop
 		const PieceType ptTo = pieceToPieceType(g_charToPieceUSI.value(moveStr[0]));
@@ -407,7 +413,7 @@ void measureGenerateMoves(const Position& pos) {
 #endif
 
 #ifdef NDEBUG
-const std::string MyName = "Apery";
+const std::string MyName = "Apery_20150327";
 #else
 const std::string MyName = "Apery Debug Build";
 #endif
