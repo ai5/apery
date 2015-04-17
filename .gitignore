@@ -12,3 +12,6 @@ Apery/Apery.vcxproj.filters
 Apery/x64/
 Apery/Release/
 Apery/Apery.vcxproj.user
+Apery/HiyokoRelease/
+Apery/HiyokoDebug/
+libs/

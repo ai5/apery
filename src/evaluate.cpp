@@ -112,7 +112,9 @@ namespace {
 		}
 
 		assert(lastMove != Move::moveNull());
-
+#ifdef HIYOKO
+		auto diff = pos.materialDiff() * FVScale;
+#else
 		const int listIndex = pos.cl().listindex[0];
 		auto diff = doapc(pos, pos.cl().clistpair[0].newlist);
 		if (pos.cl().size == 1) {
@@ -143,7 +145,7 @@ namespace {
 		pos.plist1()[listIndex] = pos.cl().clistpair[0].newlist[1];
 
 		diff += pos.materialDiff() * FVScale;
-
+#endif
 		ss->staticEvalRaw = static_cast<Score>(diff) + (ss-1)->staticEvalRaw;
 
 		return true;
@@ -190,7 +192,9 @@ namespace {
 			assert(evaluateUnUseDiff(pos) == (pos.turn() == Black ? score : -score));
 			return score;
 		}
-
+#ifdef HIYOKO
+		s32 score = pos.material() * FVScale;
+#else
 		const Square sq_bk = pos.kingSquare(Black);
 		const Square sq_wk = pos.kingSquare(White);
 		const int* list0 = pos.plist0();
@@ -217,6 +221,8 @@ namespace {
 		}
 
 		score += pos.material() * FVScale;
+#endif
+		
 #if defined INANIWA_SHIFT
 		score += inaniwaScore(pos);
 #endif
@@ -265,7 +271,9 @@ Score evaluateUnUseDiff(const Position& pos) {
 
 	const auto* ppkppb = Evaluater::KPP[sq_bk         ];
 	const auto* ppkppw = Evaluater::KPP[inverse(sq_wk)];
-
+#ifdef HIYOKO
+	s32 score = pos.material() * FVScale;
+#else
 	s32 score = Evaluater::KK[sq_bk][sq_wk];
 	for (int i = 0; i < nlist; ++i) {
 		const int k0 = list0[i];
@@ -282,7 +290,8 @@ Score evaluateUnUseDiff(const Position& pos) {
 	}
 
 	score += pos.material() * FVScale;
-
+#endif
+	
 #if defined INANIWA_SHIFT
 	score += inaniwaScore(pos);
 #endif
