@@ -417,7 +417,7 @@ struct Evaluater : public EvaluaterBase<s16, s32, s32> {
 
 	void clear() { memset(this, 0, sizeof(*this)); }
 	void init() {
-		clear();
+		// clear();
 		read();
 	}
 	void read() {
@@ -425,11 +425,9 @@ struct Evaluater : public EvaluaterBase<s16, s32, s32> {
 			std::ifstream ifs("../bin/20150327/" #x ".bin", std::ios::binary);			\
 			if (ifs) ifs.read(reinterpret_cast<char*>(x), sizeof(x));	\
 		}
-
 		FOO(KPP);
 		FOO(KKP);
 		FOO(KK);
-
 #undef FOO
 	}
 	void write() {

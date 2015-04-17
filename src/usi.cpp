@@ -68,7 +68,7 @@ void OptionsMap::init(Searcher* s) {
 	const int cpus = cpuCoreCount();
 	const int minSplitDepth = (cpus < 6 ? 4 : (cpus < 8 ? 5 : 7));
 	(*this)["Use_Search_Log"]              = USIOption(false);
-	(*this)["USI_Hash"]                    = USIOption(256, 1, 65536, onHashSize);
+	(*this)["USI_Hash"]                    = USIOption(32, 1, 65536, onHashSize);
 	(*this)["Clear_Hash"]                  = USIOption(onClearHash);
 	(*this)["Book_File"]                   = USIOption("../bin/book.bin");
 	(*this)["Best_Book_Move"]              = USIOption(false);
@@ -510,6 +510,10 @@ const std::string engine_name()
     
 #ifdef _MSC_VER
 	tag += " msvc";
+#endif
+
+#ifdef HIYOKO
+	tag += " komadoku";
 #endif
 
 #ifdef IS_64BIT
