@@ -168,7 +168,7 @@ public:
 	// 利きの生成
 
 	// 任意の occupied に対する利きを生成する。
-	template <PieceType PT> Bitboard attacksFrom(const Color c, const Square sq, const Bitboard& occupied) const;
+	template <PieceType PT> static Bitboard attacksFrom(const Color c, const Square sq, const Bitboard& occupied);
 	// 任意の occupied に対する利きを生成する。
 	template <PieceType PT> Bitboard attacksFrom(const Square sq, const Bitboard& occupied) const {
 		static_assert(PT == Bishop || PT == Rook || PT == Horse || PT == Dragon, "");
@@ -186,7 +186,7 @@ public:
 		return attacksFrom<PT>(ColorNum, sq);
 	}
 	Bitboard attacksFrom(const PieceType pt, const Color c, const Square sq) const { return attacksFrom(pt, c, sq, occupiedBB()); }
-	Bitboard attacksFrom(const PieceType pt, const Color c, const Square sq, const Bitboard& occupied) const;
+	static Bitboard attacksFrom(const PieceType pt, const Color c, const Square sq, const Bitboard& occupied);
 
 	// 次の手番
 	Color turn() const { return turn_; }
@@ -380,21 +380,21 @@ private:
 	static Key zobExclusion_; // todo: これが必要か、要検討
 };
 
-template <> inline Bitboard Position::attacksFrom<Lance >(const Color c, const Square sq, const Bitboard& occupied) const { return  lanceAttack(c, sq, occupied); }
-template <> inline Bitboard Position::attacksFrom<Bishop>(const Color c, const Square sq, const Bitboard& occupied) const { return bishopAttack(   sq, occupied); }
-template <> inline Bitboard Position::attacksFrom<Rook  >(const Color c, const Square sq, const Bitboard& occupied) const { return   rookAttack(   sq, occupied); }
-template <> inline Bitboard Position::attacksFrom<Horse >(const Color c, const Square sq, const Bitboard& occupied) const { return  horseAttack(   sq, occupied); }
-template <> inline Bitboard Position::attacksFrom<Dragon>(const Color c, const Square sq, const Bitboard& occupied) const { return dragonAttack(   sq, occupied); }
+template <> inline Bitboard Position::attacksFrom<Lance >(const Color c, const Square sq, const Bitboard& occupied) { return  lanceAttack(c, sq, occupied); }
+template <> inline Bitboard Position::attacksFrom<Bishop>(const Color  , const Square sq, const Bitboard& occupied) { return bishopAttack(   sq, occupied); }
+template <> inline Bitboard Position::attacksFrom<Rook  >(const Color  , const Square sq, const Bitboard& occupied) { return   rookAttack(   sq, occupied); }
+template <> inline Bitboard Position::attacksFrom<Horse >(const Color  , const Square sq, const Bitboard& occupied) { return  horseAttack(   sq, occupied); }
+template <> inline Bitboard Position::attacksFrom<Dragon>(const Color  , const Square sq, const Bitboard& occupied) { return dragonAttack(   sq, occupied); }
 
 template <> inline Bitboard Position::attacksFrom<Pawn  >(const Color c, const Square sq) const { return   pawnAttack(c, sq              ); }
 template <> inline Bitboard Position::attacksFrom<Lance >(const Color c, const Square sq) const { return  lanceAttack(c, sq, occupiedBB()); }
 template <> inline Bitboard Position::attacksFrom<Knight>(const Color c, const Square sq) const { return knightAttack(c, sq              ); }
 template <> inline Bitboard Position::attacksFrom<Silver>(const Color c, const Square sq) const { return silverAttack(c, sq              ); }
-template <> inline Bitboard Position::attacksFrom<Bishop>(const Color c, const Square sq) const { return bishopAttack(   sq, occupiedBB()); }
-template <> inline Bitboard Position::attacksFrom<Rook  >(const Color c, const Square sq) const { return   rookAttack(   sq, occupiedBB()); }
-template <> inline Bitboard Position::attacksFrom<King  >(const Color c, const Square sq) const { return   kingAttack(   sq              ); }
-template <> inline Bitboard Position::attacksFrom<Horse >(const Color c, const Square sq) const { return  horseAttack(   sq, occupiedBB()); }
-template <> inline Bitboard Position::attacksFrom<Dragon>(const Color c, const Square sq) const { return dragonAttack(   sq, occupiedBB()); }
+template <> inline Bitboard Position::attacksFrom<Bishop>(const Color  , const Square sq) const { return bishopAttack(   sq, occupiedBB()); }
+template <> inline Bitboard Position::attacksFrom<Rook  >(const Color  , const Square sq) const { return   rookAttack(   sq, occupiedBB()); }
+template <> inline Bitboard Position::attacksFrom<King  >(const Color  , const Square sq) const { return   kingAttack(   sq              ); }
+template <> inline Bitboard Position::attacksFrom<Horse >(const Color  , const Square sq) const { return  horseAttack(   sq, occupiedBB()); }
+template <> inline Bitboard Position::attacksFrom<Dragon>(const Color  , const Square sq) const { return dragonAttack(   sq, occupiedBB()); }
 
 // position sfen R8/2K1S1SSk/4B4/9/9/9/9/9/1L1L1L3 b PLNSGBR17p3n3g 1
 // の局面が最大合法手局面で 593 手。番兵の分、+ 1 しておく。

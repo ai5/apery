@@ -80,7 +80,7 @@ namespace {
 	const int TimerResolution = 5;
 
 	struct Skill {
-		Skill(const int l, const int mr, Searcher* s)
+		Skill(const int l, const int mr)
 			: level(l),
 			  max_random_score_diff(static_cast<Score>(mr)),
 			  best(Move::moveNone()) {}
@@ -255,12 +255,6 @@ namespace {
 
 	inline std::string scoreToUSI(const Score score) {
 		return scoreToUSI(score, -ScoreInfinite, ScoreInfinite);
-	}
-
-	void pvInfoToLog(Position& pos, const Ply d, const Score bestScore,
-					 const int elapsedTime, const Move pv[])
-	{
-		// not implemented
 	}
 }
 
@@ -453,7 +447,7 @@ Score Searcher::qsearch(Position& pos, SearchStack* ss, Score alpha, Score beta,
 		ss->currentMove = move;
 
 		pos.doMove(move, st, ci, givesCheck);
-		(ss+1)->staticEvalRaw = static_cast<Score>(INT_MAX);
+		(ss+1)->staticEvalRaw = ScoreNotEvaluated;
 		score = (givesCheck ? -qsearch<NT, true>(pos, ss+1, -beta, -alpha, depth - OnePly)
 				 : -qsearch<NT, false>(pos, ss+1, -beta, -alpha, depth - OnePly));
 		pos.undoMove(move);
@@ -504,14 +498,21 @@ void Searcher::idLoop(Position& pos) {
 	int lastInfoTime = -1; // 将棋所のコンソールが詰まる問題への対処用
 
 	memset(ss, 0, 4 * sizeof(SearchStack));
-	depth = bestMoveChanges = 0;
+	bestMoveChanges = 0;
+#if defined LEARN
+	// 高速化の為に浅い探索は反復深化しないようにする。実戦時ではほぼ影響無い。学習時は浅い探索をひたすら繰り返す為。
+	depth = std::max<Ply>(0, limits.depth - 1);
+#else
+	depth = 0;
+#endif
+
 	ss[0].currentMove = Move::moveNull(); // skip update gains
 	tt.newSearch();
 	history.clear();
 	gains.clear();
 
 	pvSize = options["MultiPV"];
-	Skill skill(options["Skill_Level"], options["Max_Random_Score_Diff"], thisptr);
+	Skill skill(options["Skill_Level"], options["Max_Random_Score_Diff"]);
 
 	if (options["Max_Random_Score_Diff_Ply"] < pos.gamePly()) {
 		skill.max_random_score_diff = ScoreZero;
@@ -562,16 +563,14 @@ void Searcher::idLoop(Position& pos) {
 			// fail high/low になったなら、今度は window 幅を広げて、再探索を行う。
 			while (true) {
 				// 探索を行う。
-				ss->staticEvalRaw = static_cast<Score>(INT_MAX);
-				(ss+1)->staticEvalRaw = static_cast<Score>(INT_MAX);
+				ss->staticEvalRaw = (ss+1)->staticEvalRaw = ScoreNotEvaluated;
 				bestScore = search<Root>(pos, ss + 1, alpha, beta, static_cast<Depth>(depth * OnePly), false);
 				// 先頭が最善手になるようにソート
 				insertionSort(rootMoves.begin() + pvIdx, rootMoves.end());
 
 				for (size_t i = 0; i <= pvIdx; ++i) {
-					ss->staticEvalRaw = static_cast<Score>(INT_MAX);
-					(ss+1)->staticEvalRaw = static_cast<Score>(INT_MAX);
-					rootMoves[i].insertPvInTT(pos, ss + 1);
+					ss->staticEvalRaw = (ss+1)->staticEvalRaw = ScoreNotEvaluated;
+					rootMoves[i].insertPvInTT(pos);
 				}
 
 #if 0
@@ -633,12 +632,6 @@ void Searcher::idLoop(Position& pos) {
 		//	skill.pickMove();
 		//}
 
-#if 0
-		if (options["Use_Search_Log"]) {
-			pvInfoToLog(pos, depth, bestScore, searchTimer.elapsed(), &rootMoves[0].pv_[0]);
-		}
-#endif
-
 		if (limits.useTimeManagement() && !signals.stopOnPonderHit) {
 			bool stop = false;
 
@@ -666,7 +659,7 @@ void Searcher::idLoop(Position& pos) {
 					|| timeManager.availableTime() * 40 / 100 < searchTimer.elapsed()))
 			{
 				const Score rBeta = bestScore - 2 * CapturePawnScore;
-				(ss+1)->staticEvalRaw = static_cast<Score>(INT_MAX);
+				(ss+1)->staticEvalRaw = ScoreNotEvaluated;
 				(ss+1)->excludedMove = rootMoves[0].pv_[0];
 				(ss+1)->skipNullMove = true;
 				const Score s = search<NonPV>(pos, ss+1, rBeta-1, rBeta, (depth - 3) * OnePly, true);
@@ -1007,7 +1000,7 @@ Score Searcher::search(Position& pos, SearchStack* ss, Score alpha, Score beta, 
 			if (pos.pseudoLegalMoveIsLegal<false, false>(move, ci.pinned)) {
 				ss->currentMove = move;
 				pos.doMove(move, st, ci, pos.moveGivesCheck(move, ci));
-				(ss+1)->staticEvalRaw = static_cast<Score>(INT_MAX);
+				(ss+1)->staticEvalRaw = ScoreNotEvaluated;
 				score = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, rdepth, !cutNode);
 				pos.undoMove(move);
 				if (rbeta <= score) {
@@ -1185,7 +1178,7 @@ split_point_start:
 
 		// step14
 		pos.doMove(move, st, ci, givesCheck);
-		(ss+1)->staticEvalRaw = static_cast<Score>(INT_MAX);
+		(ss+1)->staticEvalRaw = ScoreNotEvaluated;
 
 		// step15
 		// LMR
@@ -1380,7 +1373,7 @@ void RootMove::extractPvFromTT(Position& pos) {
 	}
 }
 
-void RootMove::insertPvInTT(Position& pos, SearchStack* ss) {
+void RootMove::insertPvInTT(Position& pos) {
 	StateInfo state[MaxPlyPlus2];
 	StateInfo* st = state;
 	TTEntry* tte;
@@ -1446,9 +1439,8 @@ bool nyugyoku(const Position& pos) {
 	const Bitboard opponentsField = (us == Black ? inFrontMask<Black, Rank6>() : inFrontMask<White, Rank4>());
 
 	// 二 宣言側の玉が敵陣三段目以内に入っている。
-	if (!pos.bbOf(King, us).andIsNot0(opponentsField)) {
+	if (!pos.bbOf(King, us).andIsNot0(opponentsField))
 		return false;
-	}
 
 	// 三 宣言側が、大駒5点小駒1点で計算して
 	//     先手の場合28点以上の持点がある。
@@ -1461,27 +1453,23 @@ bool nyugyoku(const Position& pos) {
 		+ smallBB.popCount()
 		+ hand.numOf<HPawn>() + hand.numOf<HLance>() + hand.numOf<HKnight>()
 		+ hand.numOf<HSilver>() + hand.numOf<HGold>();
-#if defined DENOUSEN_FINAL
-	if (val < 31) {
+#if defined LAW_24
+	if (val < 31)
 		return false;
-	}
 #else
-	if (val < (us == Black ? 28 : 27)) {
+	if (val < (us == Black ? 28 : 27))
 		return false;
-	}
 #endif
 
 	// 四 宣言側の敵陣三段目以内の駒は、玉を除いて10枚以上存在する。
 
 	// 玉は敵陣にいるので、自駒が敵陣に11枚以上あればよい。
-	if ((pos.bbOf(us) & opponentsField).popCount() < 11) {
+	if ((pos.bbOf(us) & opponentsField).popCount() < 11)
 		return false;
-	}
 
 	// 五 宣言側の玉に王手がかかっていない。
-	if (pos.inCheck()) {
+	if (pos.inCheck())
 		return false;
-	}
 
 	// 六 宣言側の持ち時間が残っている。
 

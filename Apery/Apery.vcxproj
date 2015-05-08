@@ -288,6 +288,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\src\common.hpp" />
+    <ClInclude Include="..\src\evaluate.hpp" />
     <ClInclude Include="..\src\hand.hpp" />
   </ItemGroup>
   <ItemGroup>

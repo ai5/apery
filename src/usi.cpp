@@ -14,6 +14,9 @@ namespace {
 	void onThreads(Searcher* s, const USIOption&)      { s->threads.readUSIOptions(s); }
 	void onHashSize(Searcher* s, const USIOption& opt) { s->tt.setSize(opt); }
 	void onClearHash(Searcher* s, const USIOption&)    { s->tt.clear(); }
+	void onEvalDir(Searcher*, const USIOption& opt)    {
+		std::unique_ptr<Evaluater>(new Evaluater)->init(opt, true);
+	}
 }
 
 bool CaseInsensitiveLess::operator () (const std::string& s1, const std::string& s2) const {
@@ -65,31 +68,29 @@ namespace {
 }
 
 void OptionsMap::init(Searcher* s) {
-	const int cpus = cpuCoreCount();
-	const int minSplitDepth = (cpus < 6 ? 4 : (cpus < 8 ? 5 : 7));
-	(*this)["Use_Search_Log"]              = USIOption(false);
-	(*this)["USI_Hash"]                    = USIOption(32, 1, 65536, onHashSize);
-	(*this)["Clear_Hash"]                  = USIOption(onClearHash);
-	(*this)["Book_File"]                   = USIOption("../bin/book.bin");
+	(*this)["USI_Hash"]                    = USIOption(32, 1, 65536, onHashSize, s);
+	(*this)["Clear_Hash"]                  = USIOption(onClearHash, s);
+	(*this)["Book_File"]                   = USIOption("book/20150503/book.bin");
 	(*this)["Best_Book_Move"]              = USIOption(false);
 	(*this)["OwnBook"]                     = USIOption(true);
 	(*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
 	(*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
 	(*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
-	(*this)["USI_Ponder"]                  = USIOption(false);
+	(*this)["Eval_Dir"]                    = USIOption("20150501", onEvalDir);
+	(*this)["Write_Synthesized_Eval"]      = USIOption(false);
+	(*this)["USI_Ponder"]                  = USIOption(true);
 	(*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
 	(*this)["MultiPV"]                     = USIOption(1, 1, MaxLegalMoves);
 	(*this)["Skill_Level"]                 = USIOption(20, 0, 20);
 	(*this)["Max_Random_Score_Diff"]       = USIOption(0, 0, ScoreMate0Ply);
-	(*this)["Max_Random_Score_Diff_Ply"]   = USIOption(SHRT_MAX, SHRT_MIN, SHRT_MAX);
+	(*this)["Max_Random_Score_Diff_Ply"]   = USIOption(SHRT_MAX, 0, SHRT_MAX);
 	(*this)["Emergency_Move_Horizon"]      = USIOption(40, 0, 50);
 	(*this)["Emergency_Base_Time"]         = USIOption(200, 0, 30000);
 	(*this)["Emergency_Move_Time"]         = USIOption(70, 0, 5000);
 	(*this)["Slow_Mover"]                  = USIOption(100, 10, 1000);
 	(*this)["Minimum_Thinking_Time"]       = USIOption(1500, 0, INT_MAX);
-	(*this)["Min_Split_Depth"]             = USIOption(minSplitDepth, 4, 12, onThreads, s);
 	(*this)["Max_Threads_per_Split_Point"] = USIOption(5, 4, 8, onThreads, s);
-	(*this)["Threads"]                     = USIOption(cpus, 1, MaxThreads, onThreads, s);
+	(*this)["Threads"]                     = USIOption(cpuCoreCount(), 1, MaxThreads, onThreads, s);
 	(*this)["Use_Sleeping_Threads"]        = USIOption(true);
 }
 
@@ -363,9 +364,6 @@ void Searcher::setOption(std::istringstream& ssCmd) {
 	if (!options.isLegalOption(name)) {
 		std::cout << "No such option: " << name << std::endl;
 	}
-	else if (value.empty()) {
-		options[name] = true;
-	}
 	else {
 		options[name] = value;
 	}
@@ -413,7 +411,7 @@ void measureGenerateMoves(const Position& pos) {
 #endif
 
 #ifdef NDEBUG
-const std::string MyName = "Apery_20150327";
+const std::string MyName = "Apery_WCSC25";
 #else
 const std::string MyName = "Apery Debug Build";
 #endif
@@ -491,6 +489,9 @@ void Searcher::doUSICommandLoop(int argc, char* argv[]) {
 #endif
 		else                           { SYNCCOUT << "unknown command: " << cmd << SYNCENDL; }
 	} while (token != "quit" && argc == 1);
+
+	if (options["Write_Synthesized_Eval"])
+		Evaluater::writeSynthesized(options["Eval_Dir"]);
 
 	threads.waitForThinkFinished();
 }

@@ -40,35 +40,44 @@ struct LearnEvaluater : public EvaluaterBase<float, float, float> {
 	// kpp_raw, kkp_raw, kk_raw の値を低次元の要素に与える。
 	void lowerDimension() {
 #define FOO(indices, oneArray, sum)										\
-		for (auto index : indices) {									\
-			if (index == std::numeric_limits<ptrdiff_t>::max()) break;	\
-			if (0 <= index) oneArray[ index] += sum;					\
-			else            oneArray[-index] -= sum;					\
+		for (auto indexAndWeight : indices) {							\
+			if (indexAndWeight.first == std::numeric_limits<ptrdiff_t>::max()) break; \
+			if (0 <= indexAndWeight.first) oneArray[ indexAndWeight.first] += sum; \
+			else                           oneArray[-indexAndWeight.first] -= sum; \
 		}
 
 		// KPP
-		for (Square ksq = I9; ksq < SquareNum; ++ksq) {
-			for (int i = 0; i < fe_end; ++i) {
-				for (int j = 0; j < fe_end; ++j) {
-					auto indices = kppIndices(ksq, i, j);
-					FOO(indices, oneArrayKPP, kpp_raw[ksq][i][j]);
+		{
+			std::pair<ptrdiff_t, int> indices[KPPIndicesMax];
+			for (Square ksq = I9; ksq < SquareNum; ++ksq) {
+				for (int i = 0; i < fe_end; ++i) {
+					for (int j = 0; j < fe_end; ++j) {
+						kppIndices(indices, ksq, i, j);
+						FOO(indices, oneArrayKPP, kpp_raw[ksq][i][j]);
+					}
 				}
 			}
 		}
 		// KKP
-		for (Square ksq0 = I9; ksq0 < SquareNum; ++ksq0) {
-			for (Square ksq1 = I9; ksq1 < SquareNum; ++ksq1) {
-				for (int i = 0; i < fe_end; ++i) {
-					auto indices = kkpIndices(ksq0, ksq1, i);
-					FOO(indices, oneArrayKKP, kkp_raw[ksq0][ksq1][i]);
+		{
+			std::pair<ptrdiff_t, int> indices[KKPIndicesMax];
+			for (Square ksq0 = I9; ksq0 < SquareNum; ++ksq0) {
+				for (Square ksq1 = I9; ksq1 < SquareNum; ++ksq1) {
+					for (int i = 0; i < fe_end; ++i) {
+						kkpIndices(indices, ksq0, ksq1, i);
+						FOO(indices, oneArrayKKP, kkp_raw[ksq0][ksq1][i]);
+					}
 				}
 			}
 		}
 		// KK
-		for (Square ksq0 = I9; ksq0 < SquareNum; ++ksq0) {
-			for (Square ksq1 = I9; ksq1 < SquareNum; ++ksq1) {
-				auto indices = kkIndices(ksq0, ksq1);
-				FOO(indices, oneArrayKK, kk_raw[ksq0][ksq1]);
+		{
+			std::pair<ptrdiff_t, int> indices[KKIndicesMax];
+			for (Square ksq0 = I9; ksq0 < SquareNum; ++ksq0) {
+				for (Square ksq1 = I9; ksq1 < SquareNum; ++ksq1) {
+					kkIndices(indices, ksq0, ksq1);
+					FOO(indices, oneArrayKK, kk_raw[ksq0][ksq1]);
+				}
 			}
 		}
 #undef FOO
@@ -119,7 +128,7 @@ struct BookMoveData {
 class Learner {
 public:
 	void learn(Position& pos, std::istringstream& ssCmd) {
-		eval_.init();
+		eval_.init(pos.searcher()->options["Eval_Dir"], false);
 		readBook(pos, ssCmd);
 		size_t threadNum;
 		ssCmd >> threadNum;
@@ -152,8 +161,7 @@ public:
 private:
 	// 学習に使う棋譜から、手と手に対する補助的な情報を付けでデータ保持する。
 	// 50000局程度に対して10秒程度で終わるからシングルコアで良い。
-	template<typename T>
-	void setLearnMoves(Position& pos, T& dict, std::string& s0, std::string& s1) {
+	void setLearnMoves(Position& pos, std::set<std::pair<Key, Move> >& dict, std::string& s0, std::string& s1) {
 		bookMovesDatum_.push_back(std::vector<BookMoveData>());
 		BookMoveData bmdBase[ColorNum];
 		bmdBase[Black].move = bmdBase[White].move = Move::moveNone();
@@ -338,7 +346,7 @@ private:
 		if      (0.0 <= dv && v <= std::numeric_limits<T>::max() - step) v += step;
 		else if (dv <= 0.0 && std::numeric_limits<T>::min() + step <= v) v -= step;
 	}
-	void updateEval() {
+	void updateEval(const std::string& dirName) {
 		for (size_t i = eval_.kpps_begin_index(), j = parse2Data_.params.kpps_begin_index(); i < eval_.kpps_end_index(); ++i, ++j)
 			updateFV(eval_.oneArrayKPP[i], parse2Data_.params.oneArrayKPP[j]);
 		for (size_t i = eval_.kkps_begin_index(), j = parse2Data_.params.kkps_begin_index(); i < eval_.kkps_end_index(); ++i, ++j)
@@ -347,7 +355,7 @@ private:
 			updateFV(eval_.oneArrayKK[i], parse2Data_.params.oneArrayKK[j]);
 
 		eval_.setEvaluate();
-		eval_.write();
+		eval_.write(dirName);
 		g_evalTable.clear();
 	}
 	double sigmoid(const double x) const {
@@ -392,7 +400,7 @@ private:
 						pos.doMove(bmd.pvBuffer[recordPVIndex], setUpStates->top());
 					}
 					// evaluate() の差分計算を無効化する。
-					ss[0].staticEvalRaw = ss[1].staticEvalRaw = static_cast<Score>(INT_MAX);
+					ss[0].staticEvalRaw = ss[1].staticEvalRaw = ScoreNotEvaluated;
 					const Score recordScore = (rootColor == pos.turn() ? evaluate(pos, ss+1) : -evaluate(pos, ss+1));
 #if defined PRINT_PV
 					std::cout << ", score: " << recordScore << std::endl;
@@ -413,7 +421,7 @@ private:
 							setUpStates->push(StateInfo());
 							pos.doMove(bmd.pvBuffer[otherPVIndex], setUpStates->top());
 						}
-						ss[0].staticEvalRaw = ss[1].staticEvalRaw = static_cast<Score>(INT_MAX);
+						ss[0].staticEvalRaw = ss[1].staticEvalRaw = ScoreNotEvaluated;
 						const Score score = (rootColor == pos.turn() ? evaluate(pos, ss+1) : -evaluate(pos, ss+1));
 						const auto diff = score - recordScore;
 						const double dT = (rootColor == Black ? dsigmoid(diff) : -dsigmoid(diff));
@@ -460,7 +468,7 @@ private:
 			}
 			parse2Data_.params.lowerDimension();
 			std::cout << "update eval ... " << std::flush;
-			updateEval();
+			updateEval(pos.searcher()->options["Eval_Dir"]);
 			std::cout << "done" << std::endl;
 			std::cout << "parse2 1 step elapsed: " << t.elapsed() / 1000 << "[sec]" << std::endl;
 			print();
