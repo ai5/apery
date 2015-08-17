@@ -69,7 +69,11 @@
 #endif
 
 #if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+#ifdef _HAS_CONSTEXPR
+#define CONSTEXPR constexpr
+#else
 #define CONSTEXPR
+#endif
 #elif defined(__INTEL_COMPILER)
 #define CONSTEXPR constexpr
 #elif defined(__GNUC__)
