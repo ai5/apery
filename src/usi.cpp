@@ -36,7 +36,7 @@ namespace {
 	inline int cpuCoreCount() {
         // todo: boost::thread::physical_concurrency() を使うこと。
 		// std::thread::hardware_concurrency() は 0 を返す可能性がある。
-		return std::max(static_cast<int>(std::thread::hardware_concurrency()), 1);
+		return std::max(static_cast<int>(std::thread::hardware_concurrency()/2), 1);
 	}
 
 	class StringToPieceTypeCSA : public std::map<std::string, PieceType> {
@@ -91,7 +91,10 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["Minimum_Thinking_Time"]       = USIOption(1500, 0, INT_MAX);
 	(*this)["Max_Threads_per_Split_Point"] = USIOption(5, 4, 8, onThreads, s);
 	(*this)["Threads"]                     = USIOption(cpuCoreCount(), 1, MaxThreads, onThreads, s);
-	(*this)["Use_Sleeping_Threads"]        = USIOption(true);
+	(*this)["Use_Sleeping_Threads"]        = USIOption(false);
+#if defined BISHOP_IN_DANGER
+	(*this)["Danger_Demerit_Score"]        = USIOption(700, SHRT_MIN, SHRT_MAX);
+#endif
 }
 
 USIOption::USIOption(const char* v, Fn* f, Searcher* s) :
@@ -159,17 +162,21 @@ void go(const Position& pos, std::istringstream& ssCmd) {
 	std::string token;
 
 	while (ssCmd >> token) {
-		if      (token == "ponder"  ) { limits.ponder = true; }
-		else if (token == "btime"   ) { ssCmd >> limits.time[Black]; }
-		else if (token == "wtime"   ) { ssCmd >> limits.time[White]; }
-		else if (token == "infinite") { limits.infinite = true; }
+		if      (token == "ponder"     ) { limits.ponder = true; }
+		else if (token == "btime"      ) { ssCmd >> limits.time[Black]; }
+		else if (token == "wtime"      ) { ssCmd >> limits.time[White]; }
+		else if (token == "infinite"   ) { limits.infinite = true; }
 		else if (token == "byoyomi" || token == "movetime") {
 			// btime wtime の後に byoyomi が来る前提になっているので良くない。
 			ssCmd >> limits.moveTime;
 			if (limits.moveTime != 0) { limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"]; }
 		}
-		else if (token == "depth"   ) { ssCmd >> limits.depth; }
-		else if (token == "nodes"   ) { ssCmd >> limits.nodes; }
+		else if (token == "depth"      ) { ssCmd >> limits.depth; }
+		else if (token == "nodes"      ) { ssCmd >> limits.nodes; }
+		else if (token == "searchmoves") {
+			while (ssCmd >> token)
+				moves.push_back(usiToMove(pos, token));
+		}
 	}
 	pos.searcher()->searchMoves = moves;
 	pos.searcher()->threads.startThinking(pos, limits, moves);

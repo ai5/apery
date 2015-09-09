@@ -43,7 +43,6 @@ int main(int argc, char* argv[]) {
 	// 一時オブジェクトの生成と破棄
 	std::unique_ptr<Evaluater>(new Evaluater)->init(s->options["Eval_Dir"], true);
 	s->doUSICommandLoop(argc, argv);
-
 	s->threads.exit();
 }
 

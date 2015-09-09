@@ -131,7 +131,7 @@ FORCE_INLINE int firstOneFromLSB(const u64 b) {
 FORCE_INLINE int firstOneFromMSB(const u64 b) {
 	unsigned long index;
 	_BitScanReverse64(&index, b);
-	return 63 - index; // __builtin_clzllに動作を合わせる
+	return 63 - index;
 }
 #elif defined(__GNUC__) && ( defined(__i386__) || defined(__x86_64__) )
 FORCE_INLINE int firstOneFromLSB(const u64 b) {
@@ -284,7 +284,7 @@ public:
 	int elapsed() const {
 		using std::chrono::duration_cast;
 		using std::chrono::milliseconds;
-		return static_cast<int>( duration_cast<milliseconds>(std::chrono::system_clock::now() - t_).count());
+		return static_cast<int>(duration_cast<milliseconds>(std::chrono::system_clock::now() - t_).count());
 	}
 	static Time currentTime() {
 		Time t;

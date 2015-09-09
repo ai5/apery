@@ -4,27 +4,21 @@
 #include "usi.hpp"
 
 namespace {
-
- // Helpers to launch a thread after creation and joining before delete. Must be
- // outside Thread c'tor and d'tor because object shall be fully initialized
- // when virtual idle_loop() is called and when joining.
- template<typename T> T* new_thread(Searcher* s) {
-   T* th = new T(s);
-   th->handle = std::thread(&Thread::idleLoop, th); // Will go to sleep
-   return th;
- }
-
- void delete_thread(Thread* th) {
-   th->exit = true; // Search must be already finished
-   th->notifyOne();
-   th->handle.join(); // Wait for thread termination
-   delete th;
- }
-
+	template <typename T> T* newThread(Searcher* s) {
+		T* th = new T(s);
+		th->handle = std::thread(&Thread::idleLoop, th); // move constructor
+		return th;
+	}
+	void deleteThread(Thread* th) {
+		th->exit = true;
+		th->notifyOne();
+		th->handle.join(); // Wait for thread termination
+		delete th;
+	}
 }
 
 Thread::Thread(Searcher* s) /*: splitPoints()*/ {
-    searcher = s;
+	searcher = s;
 	exit = false;
 	searching = false;
 	splitPointsSize = 0;
@@ -32,13 +26,6 @@ Thread::Thread(Searcher* s) /*: splitPoints()*/ {
 	activeSplitPoint = nullptr;
 	activePosition = nullptr;
 	idx = s->threads.size();
-
-	// move constructor
-	// コンストラクタ内だとVCで正常に動かない
-//	handle = std::thread(&Thread::idleLoop, this);
-}
-
-Thread::~Thread() {
 }
 
 void TimerThread::idleLoop() {
@@ -110,20 +97,17 @@ void Thread::waitFor(volatile const bool& b) {
 
 void ThreadPool::init(Searcher* s) {
 	sleepWhileIdle_ = true;
-	timer_ = new_thread<TimerThread>(s);
-	
-	push_back(new_thread<MainThread>(s));
+	timer_ = newThread<TimerThread>(s);
+	push_back(newThread<MainThread>(s));
 	readUSIOptions(s);
 }
 
-void ThreadPool::exit()
-{
+void ThreadPool::exit() {
 	// checkTime() がデータにアクセスしないよう、先に timer_ を delete
-	delete_thread(timer_);
+	deleteThread(timer_);
 
-	for (auto elem : *this) {
-		delete_thread(elem);
-	}
+	for (auto elem : *this)
+		deleteThread(elem);
 }
 
 ThreadPool::~ThreadPool() {
@@ -137,11 +121,11 @@ void ThreadPool::readUSIOptions(Searcher* s) {
 	assert(0 < requested);
 
 	while (size() < requested) {
-		push_back(new_thread<Thread>(s));
+		push_back(newThread<Thread>(s));
 	}
 
 	while (requested < size()) {
-		delete_thread(back());
+		deleteThread(back());
 		pop_back();
 	}
 }

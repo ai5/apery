@@ -48,7 +48,7 @@ MovePicker::MovePicker(const Position& pos, Move ttm, const Depth depth, const H
 	// todo: ここで Stockfish は qcheck がある。
 	else if (DepthQRecaptures < depth) {
 		phase_ = QSearch;
-		if (!ttm.isNone() && !ttm.isCaptureOrPromotion()) {
+		if (!ttm.isNone() && !ttm.isCaptureOrPawnPromotion()) {
 			ttm = Move::moveNone();
 		}
 	}
@@ -112,8 +112,8 @@ template <> Move MovePicker::nextMove<false>() {
 		case PH_Killers:
 			move = (currMove_++)->move;
 			if (!move.isNone()
-				&& pos().moveIsPseudoLegal(move, true)
 				&& move != ttMove_
+				&& pos().moveIsPseudoLegal(move, true)
 				&& pos().piece(move.to()) == Empty)
 			{
 				return move;

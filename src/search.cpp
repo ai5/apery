@@ -432,12 +432,12 @@ Score Searcher::qsearch(Position& pos, SearchStack* ss, Score alpha, Score beta,
 
 		evasionPrunable = (INCHECK
 						   && ScoreMatedInMaxPly < bestScore
-						   && !move.isCapture());
+						   && !move.isCaptureOrPawnPromotion());
 
 		if (!PVNode
 			&& (!INCHECK || evasionPrunable)
 			&& move != ttMove
-			&& (!move.isPromotion() || ((INCHECK ? move.pieceTypeFromOrDropped() : move.pieceTypeFrom()) == Silver))
+			&& (!move.isPromotion() || move.pieceTypeFrom() != Pawn)
 			&& pos.seeSign(move) < 0)
 		{
 			continue;
@@ -539,12 +539,18 @@ void Searcher::idLoop(Position& pos) {
 	}
 
 #if defined BISHOP_IN_DANGER
-	if ((bishopInDangerFlag == BlackBishopInDanger
+	if ((bishopInDangerFlag == BlackBishopInDangerIn28
 		 && std::find_if(std::begin(rootMoves), std::end(rootMoves),
 						 [](const RootMove& rm) { return rm.pv_[0].toCSA() == "0082KA"; }) != std::end(rootMoves))
-		|| (bishopInDangerFlag == WhiteBishopInDanger
+		|| (bishopInDangerFlag == WhiteBishopInDangerIn28
 			&& std::find_if(std::begin(rootMoves), std::end(rootMoves),
-							[](const RootMove& rm) { return rm.pv_[0].toCSA() == "0028KA"; }) != std::end(rootMoves)))
+							[](const RootMove& rm) { return rm.pv_[0].toCSA() == "0028KA"; }) != std::end(rootMoves))
+		|| (bishopInDangerFlag == BlackBishopInDangerIn78
+			&& std::find_if(std::begin(rootMoves), std::end(rootMoves),
+						 [](const RootMove& rm) { return rm.pv_[0].toCSA() == "0032KA"; }) != std::end(rootMoves))
+		|| (bishopInDangerFlag == WhiteBishopInDangerIn78
+			&& std::find_if(std::begin(rootMoves), std::end(rootMoves),
+							[](const RootMove& rm) { return rm.pv_[0].toCSA() == "0078KA"; }) != std::end(rootMoves)))
 	{
 		if (rootMoves.size() != 1)
 			pvSize = std::max<size_t>(pvSize, 2);
@@ -728,7 +734,25 @@ void Searcher::detectBishopInDanger(const Position& pos) {
 			&& pos.piece(inverseIfWhite(them, G2)) == Empty
 			&& pos.piece(inverseIfWhite(them, G1)) == Empty)
 		{
-			bishopInDangerFlag = (pos.turn() == Black ? BlackBishopInDanger : WhiteBishopInDanger);
+			bishopInDangerFlag = (pos.turn() == Black ? BlackBishopInDangerIn28 : WhiteBishopInDangerIn28);
+			//tt.clear();
+		}
+		else if (pos.hand(pos.turn()).exists<HBishop>()
+				 && pos.hand(them).exists<HBishop>()
+				 && pos.piece(inverseIfWhite(them, C2)) == Empty
+				 && pos.piece(inverseIfWhite(them, C1)) == Empty
+				 && pos.piece(inverseIfWhite(them, D2)) == Empty
+				 && pos.piece(inverseIfWhite(them, D1)) == Empty
+				 && pos.piece(inverseIfWhite(them, A2)) == Empty
+				 && (pieceToPieceType(pos.piece(inverseIfWhite(them, C3))) == Silver
+					 || pieceToPieceType(pos.piece(inverseIfWhite(them, B2))) == Silver)
+				 && (pieceToPieceType(pos.piece(inverseIfWhite(them, C3))) == Knight
+					 || pieceToPieceType(pos.piece(inverseIfWhite(them, B1))) == Knight)
+				 && ((pieceToPieceType(pos.piece(inverseIfWhite(them, E2))) == Gold
+					  && pieceToPieceType(pos.piece(inverseIfWhite(them, E1))) == King)
+					 || pieceToPieceType(pos.piece(inverseIfWhite(them, E1))) == Gold))
+		{
+			bishopInDangerFlag = (pos.turn() == Black ? BlackBishopInDangerIn78 : WhiteBishopInDangerIn78);
 			//tt.clear();
 		}
 	}
@@ -788,7 +812,7 @@ Score Searcher::search(Position& pos, SearchStack* ss, Score alpha, Score beta, 
 	bool givesCheck;
 	bool isPVMove;
 	bool singularExtensionNode;
-	bool captureOrPromotion;
+	bool captureOrPawnPromotion;
 	bool dangerous;
 	bool doFullDepthSearch;
 	int moveCount;
@@ -878,7 +902,7 @@ Score Searcher::search(Position& pos, SearchStack* ss, Score alpha, Score beta, 
 
 		if (beta <= ttScore
 			&& !ttMove.isNone()
-			&& !ttMove.isCaptureOrPromotion()
+			&& !ttMove.isCaptureOrPawnPromotion()
 			&& ttMove != ss->killers[0])
 		{
 			ss->killers[1] = ss->killers[0];
@@ -925,7 +949,7 @@ Score Searcher::search(Position& pos, SearchStack* ss, Score alpha, Score beta, 
 	if ((move = (ss-1)->currentMove) != Move::moveNull()
 		&& (ss-1)->staticEval != ScoreNone
 		&& ss->staticEval != ScoreNone
-		&& !move.isCapture() // 前回(一手前)の指し手が駒取りでなかった。
+		&& !move.isCaptureOrPawnPromotion() // 前回(一手前)の指し手が駒取りでなかった。
 		)
 	{
 		const Square to = move.to();
@@ -1118,7 +1142,7 @@ split_point_start:
 		}
 
 		extension = Depth0;
-		captureOrPromotion = move.isCaptureOrPromotion();
+		captureOrPawnPromotion = move.isCaptureOrPawnPromotion();
 		givesCheck = pos.moveGivesCheck(move, ci);
 		dangerous = givesCheck; // todo: not implement
 
@@ -1155,7 +1179,7 @@ split_point_start:
 		// step13
 		// futility pruning
 		if (!PVNode
-			&& !captureOrPromotion
+			&& !captureOrPawnPromotion
 			&& !inCheck
 			&& !dangerous
 			//&& move != ttMove // 次の行がtrueならこれもtrueなので条件から省く。
@@ -1208,7 +1232,7 @@ split_point_start:
 
 		isPVMove = (PVNode && moveCount == 1);
 		ss->currentMove = move;
-		if (!SPNode && !captureOrPromotion && playedMoveCount < 64) {
+		if (!SPNode && !captureOrPawnPromotion && playedMoveCount < 64) {
 			movesSearched[playedMoveCount++] = move;
 		}
 
@@ -1220,7 +1244,7 @@ split_point_start:
 		// LMR
 		if (3 * OnePly <= depth
 			&& !isPVMove
-			&& !captureOrPromotion
+			&& !captureOrPawnPromotion
 			&& move != ttMove
 			&& ss->killers[0] != move
 			&& ss->killers[1] != move)
@@ -1286,10 +1310,12 @@ split_point_start:
 				// PV move or new best move
 				rm.score_ = score;
 #if defined BISHOP_IN_DANGER
-				if ((bishopInDangerFlag == BlackBishopInDanger && move.toCSA() == "0082KA")
-					|| (bishopInDangerFlag == WhiteBishopInDanger && move.toCSA() == "0028KA"))
+				if ((bishopInDangerFlag == BlackBishopInDangerIn28 && move.toCSA() == "0082KA")
+					|| (bishopInDangerFlag == WhiteBishopInDangerIn28 && move.toCSA() == "0028KA")
+					|| (bishopInDangerFlag == BlackBishopInDangerIn78 && move.toCSA() == "0032KA")
+					|| (bishopInDangerFlag == WhiteBishopInDangerIn78 && move.toCSA() == "0078KA"))
 				{
-					rm.score_ -= 500;
+					rm.score_ -= options["Danger_Demerit_Score"];
 				}
 #endif
 				rm.extractPvFromTT(pos);
@@ -1356,7 +1382,7 @@ split_point_start:
 		tt.store(posKey, scoreToTT(bestScore, ss->ply), BoundLower, depth,
 				 bestMove, ss->staticEval);
 
-		if (!bestMove.isCaptureOrPromotion() && !inCheck) {
+		if (!bestMove.isCaptureOrPawnPromotion() && !inCheck) {
 			if (bestMove != ss->killers[0]) {
 				ss->killers[1] = ss->killers[0];
 				ss->killers[0] = bestMove;
