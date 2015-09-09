@@ -110,9 +110,6 @@ void ThreadPool::exit() {
 		deleteThread(elem);
 }
 
-ThreadPool::~ThreadPool() {
-}
-
 void ThreadPool::readUSIOptions(Searcher* s) {
 	maxThreadsPerSplitPoint_ = s->options["Max_Threads_per_Split_Point"];
 	const size_t requested   = s->options["Threads"];
