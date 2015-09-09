@@ -15,3 +15,8 @@ Apery/Apery.vcxproj.user
 Apery/HiyokoRelease/
 Apery/HiyokoDebug/
 libs/
+Apery/.vs/
+Apery/PGO/
+Apery/20150501/
+Apery/benchmark.sfen
+Apery/book/20150503/
