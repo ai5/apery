@@ -364,6 +364,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\bitboard.hpp" />
     <ClInclude Include="..\src\common.hpp" />
     <ClInclude Include="..\src\evaluate.hpp" />
     <ClInclude Include="..\src\hand.hpp" />
