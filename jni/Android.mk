@@ -23,5 +23,8 @@ LOCAL_SRC_FILES := ../src/main.cpp ../src/bitboard.cpp ../src/init.cpp ../src/mt
 					../src/thread.cpp ../src/common.cpp ../src/pieceScore.cpp
 
 LOCAL_CXXFLAGS  := -std=c++11 -fno-exceptions -fno-rtti  -Wextra -Ofast -MMD -MP -DNDEBUG -D__STDC_CONSTANT_MACROS -pthread
+LOCAL_CXXFLAGS += -fPIE
+LOCAL_LDFLAGS += -fPIE -pie
+
 #LOCAL_STATIC_LIBRARIES    := -lpthread
 include $(BUILD_EXECUTABLE)
