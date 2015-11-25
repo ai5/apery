@@ -537,7 +537,18 @@ template <typename KPPType, typename KKPType, typename KKType> struct EvaluaterB
 							std::tuple<Color, File, Rank> ituple = std::make_tuple(icolor, diff_file_kito, diff_rank_kito);
 							std::tuple<Color, File, Rank> jtuple = std::make_tuple(jcolor, diff_file_kjto, diff_rank_kjto);
 							if (jtuple < ituple)
+							{
+								// vcでエラーになる
+#if 0
 								std::swap(ituple, jtuple);
+#else
+								std::tuple<Color, File, Rank> temp;
+								temp = ituple;
+								ituple = jtuple;
+								jtuple = temp;
+#endif
+							}
+
 #if defined EVAL_PHASE1
 							ret[retIdx++] = std::make_pair(&kpps.r_kee[std::get<0>(ituple)][R_Mid + std::get<1>(ituple)][R_Mid + std::get<2>(ituple)][std::get<0>(jtuple)][R_Mid + std::get<1>(jtuple)][R_Mid + std::get<2>(jtuple)] - oneArrayKPP(0), MaxWeight() >> (distance+6));
 #endif
@@ -1152,7 +1163,11 @@ struct EvalSum {
 class Position;
 struct SearchStack;
 
+#ifdef IS_64BIT
 const size_t EvaluateTableSize = 0x400000; // 134MB
+#else
+const size_t EvaluateTableSize = 0x100000;
+#endif
 //const size_t EvaluateTableSize = 0x10000000; // 8GB
 //const size_t EvaluateTableSize = 0x20000000; // 17GB
 
