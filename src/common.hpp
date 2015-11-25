@@ -21,6 +21,7 @@
 #include <chrono>
 #include <array>
 #include <tuple>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -29,6 +30,7 @@
 #include <ctime>
 #include <cmath>
 #include <cstddef>
+//#include <boost/align/aligned_alloc.hpp>
 
 #if defined HAVE_BMI2
 #include <immintrin.h>
@@ -267,14 +269,18 @@ using Key = u64;
 // Size は 2のべき乗であること。
 template <typename T, size_t Size>
 struct HashTable {
-	HashTable() : entries_(Size, T()) {}
-	T* operator [] (const Key k) { return &entries_[static_cast<size_t>(k) & (Size-1)]; }
-	void clear() { std::fill(std::begin(entries_), std::end(entries_), T()); }
+	HashTable() {
+		//entries_ = (T*)(boost::alignment::aligned_alloc(sizeof(T), sizeof(T)*Size));
+		clear();
+	}
+	T* operator [] (const Key k) { return entries_ + (static_cast<size_t>(k) & (Size-1)); }
+	void clear() { memset(entries_, 0, sizeof(T)*Size); }
 	// Size が 2のべき乗であることのチェック
 	static_assert((Size & (Size-1)) == 0, "");
 
 private:
-	std::vector<T> entries_;
+	//T* entries_;
+	T entries_[Size];
 };
 
 // ミリ秒単位の時間を表すクラス
@@ -297,6 +303,31 @@ private:
 };
 
 extern std::mt19937_64 g_randomTimeSeed;
+
+#if defined _WIN32 && !defined _MSC_VER
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
+#undef NOMINMAX
+
+struct Mutex {
+	Mutex() { InitializeCriticalSection(&cs); }
+	~Mutex() { DeleteCriticalSection(&cs); }
+	void lock() { EnterCriticalSection(&cs); }
+	void unlock() { LeaveCriticalSection(&cs); }
+
+private:
+	CRITICAL_SECTION cs;
+};
+using ConditionVariable = std::condition_variable_any;
+#else
+using Mutex = std::mutex;
+using ConditionVariable = std::condition_variable;
+#endif
 
 #if 0
 #include <boost/detail/endian.hpp>

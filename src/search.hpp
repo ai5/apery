@@ -19,8 +19,9 @@ struct SearchStack {
 	Depth reduction;
 	Score staticEval;
 	bool skipNullMove;
-	Score staticEvalRaw; // 評価関数の差分計算用、値が入っていないときは ScoreNotEvaluated にしておく。
-						 // 常に Black の評価値を入れておく。
+	EvalSum staticEvalRaw; // 評価関数の差分計算用、値が入っていないときは [0] を ScoreNotEvaluated にしておく。
+						   // 常に Black 側から見た評価値を入れておく。
+						   // 0: 双玉に対する評価値, 1: 先手玉に対する評価値, 2: 後手玉に対する評価値
 };
 
 struct SignalsType {
@@ -115,6 +116,11 @@ struct Searcher {
 	STATIC StateStackPtr setUpStates;
 	STATIC std::vector<RootMove> rootMoves;
 
+#if defined LEARN
+	STATIC Score alpha;
+	STATIC Score beta;
+#endif
+
 	STATIC size_t pvSize;
 	STATIC size_t pvIdx;
 	STATIC TimeManager timeManager;
@@ -147,7 +153,7 @@ struct Searcher {
 	template <NodeType NT>
 	STATIC Score search(Position& pos, SearchStack* ss, Score alpha, Score beta, const Depth depth, const bool cutNode);
 	STATIC void think();
-    STATIC void checkTime();
+	STATIC void checkTime();
 
 	STATIC void doUSICommandLoop(int argc, char* argv[]);
 	STATIC void setOption(std::istringstream& ssCmd);

@@ -68,7 +68,7 @@ namespace {
 }
 
 void OptionsMap::init(Searcher* s) {
-	(*this)["USI_Hash"]                    = USIOption(32, 1, 65536, onHashSize, s);
+	(*this)["USI_Hash"]                    = USIOption(256, 1, 65536, onHashSize, s);
 	(*this)["Clear_Hash"]                  = USIOption(onClearHash, s);
 	(*this)["Book_File"]                   = USIOption("book/20150503/book.bin");
 	(*this)["Best_Book_Move"]              = USIOption(false);
@@ -76,7 +76,7 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
 	(*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
 	(*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
-	(*this)["Eval_Dir"]                    = USIOption("20150501", onEvalDir);
+	(*this)["Eval_Dir"]                    = USIOption("20151105", onEvalDir);
 	(*this)["Write_Synthesized_Eval"]      = USIOption(false);
 	(*this)["USI_Ponder"]                  = USIOption(true);
 	(*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
@@ -181,6 +181,17 @@ void go(const Position& pos, std::istringstream& ssCmd) {
 	pos.searcher()->searchMoves = moves;
 	pos.searcher()->threads.startThinking(pos, limits, moves);
 }
+
+#if defined LEARN
+// 学習用。通常の go 呼び出しは文字列を扱って高コストなので、大量に探索の開始、終了を行う学習では別の呼び出し方にする。
+void go(const Position& pos, const Ply depth, const Move move) {
+	LimitsType limits;
+	std::vector<Move> moves;
+	limits.depth = depth;
+	moves.push_back(move);
+	pos.searcher()->threads.startThinking(pos, limits, moves);
+}
+#endif
 
 Move usiToMoveBody(const Position& pos, const std::string& moveStr) {
 	Move move;
@@ -419,7 +430,7 @@ void measureGenerateMoves(const Position& pos) {
 #endif
 
 #ifdef NDEBUG
-const std::string MyName = "Apery";
+const std::string MyName = "Apery_Twig_SDT3";
 #else
 const std::string MyName = "Apery Debug Build";
 #endif

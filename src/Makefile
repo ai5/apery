@@ -1,6 +1,7 @@
 COMPILER = g++
 #COMPILER = mpicxx
 CFLAGS   = -std=c++11 -fno-exceptions -fno-rtti -m32 -Wextra -Ofast -MMD -MP -fopenmp
+CFLAGS   += -march=native
 LDFLAGS  = -lpthread #-lboost_mpi -lboost_serialization
 LIBS     =
 INCLUDE  = #-I../include
@@ -32,7 +33,7 @@ $(OBJDIR)/%.o: %.cpp
 all: clean $(TARGET)
 
 bmi2:
-	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
+	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -DHAVE_BMI2 -msse4.2 -mbmi2 -DHAVE_AVX2 -mavx2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
 
 sse:
 	$(MAKE) CFLAGS='$(CFLAGS) -DNDEBUG -DHAVE_SSE4 -DHAVE_SSE42 -msse4.2' LDFLAGS='$(LDFLAGS) -flto' $(TARGET)
