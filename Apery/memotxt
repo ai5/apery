@@ -56,6 +56,12 @@ info depth 15 seldepth 31 score cp -312 nodes 28015966 nps 115506 time 242549 mu
 info nodes 28015966 time 242549
 bestmove 4e4f ponder 6f6e
 
+ÅEarm64-v8a EVAL_SSE HASH=256
+info depth 15 seldepth 31 score cp -312 nodes 28015966 nps 117712 time 238004 multipv 1 pv  4e4f 6f6e 6g6h+
+ 5h4h 4f4g+ 4h4g 7g6g 5g4f 7d7b 3e2d 2c2d 2h2d S*4e P*2c 4e4f 3g4f 2b9i+ 4g3h P*2f 2d2f L*3f 2f3f
+info nodes 28015966 time 238008
+bestmove 4e4f ponder 6f6e
+
 ÅEarmeabi-v7a sse2 HASH=32
 info depth 15 seldepth 28 score cp -224 nodes 13192968 nps 78678 time 167681 multipv 1 pv  P*3f 3g3f 6g6h+
 5h4i 7g6g S*5b 6g5g 5b4c+ 7d7b 5f5e 6h5h 4i3h 5h4h 3h3g B*3i 2h2f 4h4g 3g2g 4g4f 3e2d 4f3f 2g3f 2c2d 2f2d P

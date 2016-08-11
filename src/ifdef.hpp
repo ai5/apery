@@ -35,6 +35,11 @@
 #endif
 #endif
 
+#ifdef IS_ARM
+#include "SSE2NEON.h"
+#define USE_SSE_EVAL
+#endif
+
 #if 0
 // 玉の位置にボーナスを与える。
 // 入玉を狙ったり、相手の入玉を阻止したりする為に使う。
