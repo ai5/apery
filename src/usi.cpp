@@ -490,6 +490,9 @@ void Searcher::doUSICommandLoop(int argc, char* argv[]) {
 // エンジン情報
 const std::string engine_name()
 {
+#ifdef IS_ARM
+	std::string tag = "";
+#else
 #ifdef HAVE_BMI2
 	std::string tag = "bmi2";
 #elif defined(HAVE_SSE42)
@@ -499,7 +502,8 @@ const std::string engine_name()
 #else
 	std::string tag = "nosse";
 #endif
-    
+#endif
+
 #ifdef _MSC_VER
 	tag += " msvc";
 #endif

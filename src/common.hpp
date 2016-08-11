@@ -37,9 +37,17 @@
 #endif
 
 #if defined (HAVE_SSE4)
-#include <smmintrin.h>
+#if IS_ARM
+ #include "SSE2NEON.h"
+#else
+ #include <smmintrin.h>
+#endif
 #elif defined (HAVE_SSE2)
-#include <emmintrin.h>
+#if IS_ARM
+ #include "SSE2NEON.h"
+#else
+ #include <emmintrin.h>
+#endif
 #endif
 
 #if defined(_WIN64)
@@ -168,6 +176,12 @@ FORCE_INLINE int firstOneFromMSB(const u64 b) {
 }
 #endif
 
+#ifdef IS_ARM
+inline int count1s(u64 x)
+{
+	return __builtin_popcountll(x);
+}
+#else
 #if defined(HAVE_SSE42)
 #include <nmmintrin.h>
 inline int count1s(u64 x) {
@@ -184,6 +198,7 @@ inline int count1s(u64 x) //任意の値の1のビットの数を数える。( x
 	x = x + (x >> 32);
 	return (static_cast<int>(x)) & 0x0000007f;
 }
+#endif
 #endif
 
 // for debug

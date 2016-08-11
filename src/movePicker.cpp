@@ -230,7 +230,7 @@ void MovePicker::goNextPhase() {
 		currMove_ = lastMove();
 		lastMove_ = lastNonCapture();
 		if (static_cast<Depth>(3 * OnePly) <= depth_)
-			std::sort(currMove(), lastMove(), std::greater<MoveStack>());
+			std::stable_sort(currMove(), lastMove(), std::greater<MoveStack>());
 		return;
 
 	case PH_BadCaptures:

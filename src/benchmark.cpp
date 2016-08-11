@@ -22,7 +22,7 @@ void benchmark(Position& pos) {
 		std::cout << sfen << std::endl;
 		std::istringstream ss_sfen(sfen);
 		setPosition(pos, ss_sfen);
-		std::istringstream ss_go("byoyomi 10000");
+		std::istringstream ss_go("depth 15");
 		go(pos, ss_go);
 		pos.searcher()->threads.mainThread()->waitForSearchFinished();       
 	}
