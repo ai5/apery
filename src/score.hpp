@@ -7,7 +7,7 @@
 using Ply = int;
 
 const Ply MaxPly = 128;
-const Ply MaxPlyPlus2 = MaxPly + 2;
+const Ply MaxPlyPlus4 = MaxPly + 4;
 
 enum Bound {
 	BoundNone  = 0,

@@ -146,7 +146,7 @@ public:
 	Score materialDiff() const { return st_->material - st_->previous->material; }
 
 	FORCE_INLINE Square kingSquare(const Color c) const {
-		assert(kingSquare_[c] == bbOf(King, c).constFirstOneFromI9());
+		assert(kingSquare_[c] == bbOf(King, c).constFirstOneFromSQ11());
 		return kingSquare_[c];
 	}
 
@@ -200,8 +200,7 @@ public:
 	template <bool MUSTNOTDROP, bool FROMMUSTNOTBEKING>
 	bool pseudoLegalMoveIsLegal(const Move move, const Bitboard& pinned) const;
 	bool pseudoLegalMoveIsEvasion(const Move move, const Bitboard& pinned) const;
-	// checkPawnDrop : 二歩と打ち歩詰めも調べるなら true
-	bool moveIsPseudoLegal(const Move move, const bool checkPawnDrop = false) const;
+	template <bool Searching = true> bool moveIsPseudoLegal(const Move move) const;
 #if !defined NDEBUG
 	bool moveIsLegal(const Move move) const;
 #endif
@@ -318,7 +317,7 @@ private:
 			(bbOf(Rook, Dragon) & rookAttackToEdge(ksq)) | (bbOf(Bishop, Horse) & bishopAttackToEdge(ksq));
 
 		while (pinners.isNot0()) {
-			const Square sq = pinners.firstOneFromI9();
+			const Square sq = pinners.firstOneFromSQ11();
 			// pin する遠隔駒と玉の間にある駒の位置の Bitboard
 			const Bitboard between = betweenBB(sq, ksq) & occupiedBB();
 

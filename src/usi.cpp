@@ -23,10 +23,8 @@ bool CaseInsensitiveLess::operator () (const std::string& s1, const std::string&
 	for (size_t i = 0; i < s1.size() && i < s2.size(); ++i) {
 		const int c1 = tolower(s1[i]);
 		const int c2 = tolower(s2[i]);
-
-		if (c1 != c2) {
+		if (c1 != c2)
 			return c1 < c2;
-		}
 	}
 	return s1.size() < s2.size();
 }
@@ -34,9 +32,9 @@ bool CaseInsensitiveLess::operator () (const std::string& s1, const std::string&
 namespace {
 	// 論理的なコア数の取得
 	inline int cpuCoreCount() {
-        // todo: boost::thread::physical_concurrency() を使うこと。
 		// std::thread::hardware_concurrency() は 0 を返す可能性がある。
-		return std::max(static_cast<int>(std::thread::hardware_concurrency()/2), 1);
+		// HyperThreading が有効なら論理コア数だけ thread 生成した方が強い。
+		return std::max(static_cast<int>(std::thread::hardware_concurrency()), 1);
 	}
 
 	class StringToPieceTypeCSA : public std::map<std::string, PieceType> {
@@ -80,10 +78,11 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
 	(*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
 	(*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
-	(*this)["Eval_Dir"]                    = USIOption("20151105", onEvalDir);
+	(*this)["Eval_Dir"]                    = USIOption("20160307", onEvalDir);
 	(*this)["Write_Synthesized_Eval"]      = USIOption(false);
 	(*this)["USI_Ponder"]                  = USIOption(true);
 	(*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
+	(*this)["Inc_Margin"]                  = USIOption(4500, 0, INT_MAX);
 	(*this)["MultiPV"]                     = USIOption(1, 1, MaxLegalMoves);
 	(*this)["Skill_Level"]                 = USIOption(20, 0, 20);
 	(*this)["Max_Random_Score_Diff"]       = USIOption(0, 0, ScoreMate0Ply);
@@ -93,12 +92,8 @@ void OptionsMap::init(Searcher* s) {
 	(*this)["Emergency_Move_Time"]         = USIOption(70, 0, 5000);
 	(*this)["Slow_Mover"]                  = USIOption(100, 10, 1000);
 	(*this)["Minimum_Thinking_Time"]       = USIOption(1500, 0, INT_MAX);
-	(*this)["Max_Threads_per_Split_Point"] = USIOption(5, 4, 8, onThreads, s);
 	(*this)["Threads"]                     = USIOption(cpuCoreCount(), 1, MaxThreads, onThreads, s);
 	(*this)["Use_Sleeping_Threads"]        = USIOption(false);
-#if defined BISHOP_IN_DANGER
-	(*this)["Danger_Demerit_Score"]        = USIOption(700, SHRT_MIN, SHRT_MAX);
-#endif
 }
 
 USIOption::USIOption(const char* v, Fn* f, Searcher* s) :
@@ -134,13 +129,11 @@ USIOption& USIOption::operator = (const std::string& v) {
 		return *this;
 	}
 
-	if (type_ != "button") {
+	if (type_ != "button")
 		currentValue_ = v;
-	}
 
-	if (onChange_ != nullptr) {
+	if (onChange_ != nullptr)
 		(*onChange_)(searcher_, *this);
-	}
 
 	return *this;
 }
@@ -149,51 +142,51 @@ std::ostream& operator << (std::ostream& os, const OptionsMap& om) {
 	for (auto& elem : om) {
 		const USIOption& o = elem.second;
 		os << "\noption name " << elem.first << " type " << o.type_;
-		if (o.type_ != "button") {
+		if (o.type_ != "button")
 			os << " default " << o.defaultValue_;
-		}
 
-		if (o.type_ == "spin") {
+		if (o.type_ == "spin")
 			os << " min " << o.min_ << " max " << o.max_;
-		}
 	}
 	return os;
 }
 
 void go(const Position& pos, std::istringstream& ssCmd) {
 	LimitsType limits;
-	std::vector<Move> moves;
 	std::string token;
 
+	limits.startTime.restart();
+
 	while (ssCmd >> token) {
-		if      (token == "ponder"     ) { limits.ponder = true; }
-		else if (token == "btime"      ) { ssCmd >> limits.time[Black]; }
-		else if (token == "wtime"      ) { ssCmd >> limits.time[White]; }
-		else if (token == "infinite"   ) { limits.infinite = true; }
-		else if (token == "byoyomi" || token == "movetime") {
-			// btime wtime の後に byoyomi が来る前提になっているので良くない。
-			ssCmd >> limits.moveTime;
-			if (limits.moveTime != 0) { limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"]; }
-		}
+		if      (token == "ponder"     ) limits.ponder = true;
+		else if (token == "btime"      ) ssCmd >> limits.time[Black];
+		else if (token == "wtime"      ) ssCmd >> limits.time[White];
+		else if (token == "binc"       ) ssCmd >> limits.increment[Black];
+		else if (token == "winc"       ) ssCmd >> limits.increment[White];
+		else if (token == "infinite"   ) limits.infinite = true;
+		else if (token == "byoyomi" || token == "movetime") ssCmd >> limits.moveTime;
 		else if (token == "depth"      ) { ssCmd >> limits.depth; }
 		else if (token == "nodes"      ) { ssCmd >> limits.nodes; }
 		else if (token == "searchmoves") {
 			while (ssCmd >> token)
-				moves.push_back(usiToMove(pos, token));
+				limits.searchmoves.push_back(usiToMove(pos, token));
 		}
 	}
-	pos.searcher()->searchMoves = moves;
-	pos.searcher()->threads.startThinking(pos, limits, moves);
+	if      (limits.moveTime != 0)
+		limits.moveTime -= pos.searcher()->options["Byoyomi_Margin"];
+	else if (limits.increment[pos.turn()] != 0)
+		limits.time[pos.turn()] -= pos.searcher()->options["Inc_Margin"];
+	pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->usiSetUpStates);
 }
 
 #if defined LEARN
 // 学習用。通常の go 呼び出しは文字列を扱って高コストなので、大量に探索の開始、終了を行う学習では別の呼び出し方にする。
 void go(const Position& pos, const Ply depth, const Move move) {
 	LimitsType limits;
-	std::vector<Move> moves;
 	limits.depth = depth;
-	moves.push_back(move);
-	pos.searcher()->threads.startThinking(pos, limits, moves);
+	limits.searchmoves.push_back(move);
+	pos.searcher()->threads.startThinking(pos, limits, pos.searcher()->usiSetUpStates);
+	pos.searcher()->threads.mainThread()->waitForSearchFinished();
 }
 #endif
 
@@ -208,45 +201,38 @@ Move usiToMoveBody(const Position& pos, const std::string& moveStr) {
 	if (g_charToPieceUSI.isLegalChar(moveStr[0])) {
 		// drop
 		const PieceType ptTo = pieceToPieceType(g_charToPieceUSI.value(moveStr[0]));
-		if (moveStr[1] != '*') {
+		if (moveStr[1] != '*')
 			return Move::moveNone();
-		}
 		const File toFile = charUSIToFile(moveStr[2]);
 		const Rank toRank = charUSIToRank(moveStr[3]);
-		if (!isInSquare(toFile, toRank)) {
+		if (!isInSquare(toFile, toRank))
 			return Move::moveNone();
-		}
 		const Square to = makeSquare(toFile, toRank);
 		move = makeDropMove(ptTo, to);
 	}
 	else {
 		const File fromFile = charUSIToFile(moveStr[0]);
 		const Rank fromRank = charUSIToRank(moveStr[1]);
-		if (!isInSquare(fromFile, fromRank)) {
+		if (!isInSquare(fromFile, fromRank))
 			return Move::moveNone();
-		}
 		const Square from = makeSquare(fromFile, fromRank);
 		const File toFile = charUSIToFile(moveStr[2]);
 		const Rank toRank = charUSIToRank(moveStr[3]);
-		if (!isInSquare(toFile, toRank)) {
+		if (!isInSquare(toFile, toRank))
 			return Move::moveNone();
-		}
 		const Square to = makeSquare(toFile, toRank);
-		if (moveStr[4] == '\0') {
+		if (moveStr[4] == '\0')
 			move = makeNonPromoteMove<Capture>(pieceToPieceType(pos.piece(from)), from, to, pos);
-		}
 		else if (moveStr[4] == '+') {
-			if (moveStr[5] != '\0') {
+			if (moveStr[5] != '\0')
 				return Move::moveNone();
-			}
 			move = makePromoteMove<Capture>(pieceToPieceType(pos.piece(from)), from, to, pos);
 		}
-		else {
+		else
 			return Move::moveNone();
-		}
 	}
 
-	if (pos.moveIsPseudoLegal(move, true)
+	if (pos.moveIsPseudoLegal<false>(move)
 		&& pos.pseudoLegalMoveIsLegal<false, false>(move, pos.pinnedBB()))
 	{
 		return move;
@@ -257,17 +243,15 @@ Move usiToMoveBody(const Position& pos, const std::string& moveStr) {
 // for debug
 Move usiToMoveDebug(const Position& pos, const std::string& moveStr) {
 	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
-		if (moveStr == ml.move().toUSI()) {
+		if (moveStr == ml.move().toUSI())
 			return ml.move();
-		}
 	}
 	return Move::moveNone();
 }
 Move csaToMoveDebug(const Position& pos, const std::string& moveStr) {
 	for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
-		if (moveStr == ml.move().toCSA()) {
+		if (moveStr == ml.move().toCSA())
 			return ml.move();
-		}
 	}
 	return Move::moveNone();
 }
@@ -279,47 +263,39 @@ Move usiToMove(const Position& pos, const std::string& moveStr) {
 }
 
 Move csaToMoveBody(const Position& pos, const std::string& moveStr) {
-	if (moveStr.size() != 6) {
+	if (moveStr.size() != 6)
 		return Move::moveNone();
-	}
 	const File toFile = charCSAToFile(moveStr[2]);
 	const Rank toRank = charCSAToRank(moveStr[3]);
-	if (!isInSquare(toFile, toRank)) {
+	if (!isInSquare(toFile, toRank))
 		return Move::moveNone();
-	}
 	const Square to = makeSquare(toFile, toRank);
 	const std::string ptToString(moveStr.begin() + 4, moveStr.end());
-	if (!g_stringToPieceTypeCSA.isLegalString(ptToString)) {
+	if (!g_stringToPieceTypeCSA.isLegalString(ptToString))
 		return Move::moveNone();
-	}
 	const PieceType ptTo = g_stringToPieceTypeCSA.value(ptToString);
 	Move move;
-	if (moveStr[0] == '0' && moveStr[1] == '0') {
+	if (moveStr[0] == '0' && moveStr[1] == '0')
 		// drop
 		move = makeDropMove(ptTo, to);
-	}
 	else {
 		const File fromFile = charCSAToFile(moveStr[0]);
 		const Rank fromRank = charCSAToRank(moveStr[1]);
-		if (!isInSquare(fromFile, fromRank)) {
+		if (!isInSquare(fromFile, fromRank))
 			return Move::moveNone();
-		}
 		const Square from = makeSquare(fromFile, fromRank);
 		PieceType ptFrom = pieceToPieceType(pos.piece(from));
-		if (ptFrom == ptTo) {
+		if (ptFrom == ptTo)
 			// non promote
 			move = makeNonPromoteMove<Capture>(ptFrom, from, to, pos);
-		}
-		else if (ptFrom + PTPromote == ptTo) {
+		else if (ptFrom + PTPromote == ptTo)
 			// promote
 			move = makePromoteMove<Capture>(ptFrom, from, to, pos);
-		}
-		else {
+		else
 			return Move::moveNone();
-		}
 	}
 
-	if (pos.moveIsPseudoLegal(move, true)
+	if (pos.moveIsPseudoLegal<false>(move)
 		&& pos.pseudoLegalMoveIsLegal<false, false>(move, pos.pinnedBB()))
 	{
 		return move;
@@ -343,23 +319,21 @@ void setPosition(Position& pos, std::istringstream& ssCmd) {
 		ssCmd >> token; // "moves" が入力されるはず。
 	}
 	else if (token == "sfen") {
-		while (ssCmd >> token && token != "moves") {
+		while (ssCmd >> token && token != "moves")
 			sfen += token + " ";
-		}
 	}
-	else {
+	else
 		return;
-	}
 
 	pos.set(sfen, pos.searcher()->threads.mainThread());
-	pos.searcher()->setUpStates = StateStackPtr(new std::stack<StateInfo>());
+	pos.searcher()->usiSetUpStates = StateStackPtr(new std::stack<StateInfo>());
 
 	Ply currentPly = pos.gamePly();
 	while (ssCmd >> token) {
 		const Move move = usiToMove(pos, token);
 		if (move.isNone()) break;
-		pos.searcher()->setUpStates->push(StateInfo());
-		pos.doMove(move, pos.searcher()->setUpStates->top());
+		pos.searcher()->usiSetUpStates->push(StateInfo());
+		pos.doMove(move, pos.searcher()->usiSetUpStates->top());
 		++currentPly;
 	}
 	pos.setStartPosPly(currentPly);
@@ -374,22 +348,18 @@ void Searcher::setOption(std::istringstream& ssCmd) {
 
 	ssCmd >> name;
 	// " " が含まれた名前も扱う。
-	while (ssCmd >> token && token != "value") {
+	while (ssCmd >> token && token != "value")
 		name += " " + token;
-	}
 
 	ssCmd >> value;
 	// " " が含まれた値も扱う。
-	while (ssCmd >> token) {
+	while (ssCmd >> token)
 		value += " " + token;
-	}
 
-	if (!options.isLegalOption(name)) {
+	if (!options.isLegalOption(name))
 		std::cout << "No such option: " << name << std::endl;
-	}
-	else {
+	else
 		options[name] = value;
-	}
 }
 
 #if !defined MINIMUL
@@ -402,7 +372,7 @@ void measureGenerateMoves(const Position& pos) {
 	for (int i = 0; i < MaxLegalMoves; ++i) legalMoves[i].move = moveNone();
 	MoveStack* pms = &legalMoves[0];
 	const u64 num = 5000000;
-	Time t = Time::currentTime();
+	Timer t = Timer::currentTime();
 	if (pos.inCheck()) {
 		for (u64 i = 0; i < num; ++i) {
 			pms = &legalMoves[0];
@@ -421,20 +391,18 @@ void measureGenerateMoves(const Position& pos) {
 	}
 	const int elapsed = t.elapsed();
 	std::cout << "elapsed = " << elapsed << " [msec]" << std::endl;
-	if (elapsed != 0) {
+	if (elapsed != 0)
 		std::cout << "times/s = " << num * 1000 / elapsed << " [times/sec]" << std::endl;
-	}
 	const ptrdiff_t count = pms - &legalMoves[0];
 	std::cout << "num of moves = " << count << std::endl;
-	for (int i = 0; i < count; ++i) {
+	for (int i = 0; i < count; ++i)
 		std::cout << legalMoves[i].move.toCSA() << ", ";
-	}
 	std::cout << std::endl;
 }
 #endif
 
 #ifdef NDEBUG
-const std::string MyName = "Apery_Twig_SDT3";
+const std::string MyName = "Apery";
 #else
 const std::string MyName = "Apery Debug Build";
 #endif
@@ -458,8 +426,8 @@ void Searcher::doUSICommandLoop(int argc, char* argv[]) {
 		cmd += std::string(argv[i]) + " ";
 
 	do {
-		if (argc == 1)
-			std::getline(std::cin, cmd);
+		if (argc == 1 && !std::getline(std::cin, cmd))
+			cmd = "quit";
 
 		std::istringstream ssCmd(cmd);
 
@@ -468,33 +436,29 @@ void Searcher::doUSICommandLoop(int argc, char* argv[]) {
 		if (token == "quit" || token == "stop" || token == "ponderhit" || token == "gameover") {
 			if (token != "ponderhit" || signals.stopOnPonderHit) {
 				signals.stop = true;
-				threads.mainThread()->notifyOne();
+				threads.mainThread()->startSearching(true);
 			}
-			else {
+			else
 				limits.ponder = false;
-			}
-			if (token == "ponderhit" && limits.moveTime != 0) {
-				limits.moveTime += searchTimer.elapsed();
-			}
+			if (token == "ponderhit" && limits.moveTime != 0)
+				limits.moveTime += timeManager.elapsed();
 		}
 		else if (token == "usinewgame") {
 			tt.clear();
+			threads.mainThread()->previousScore = ScoreInfinite;
 #if defined INANIWA_SHIFT
 			inaniwaFlag = NotInaniwa;
 #endif
-#if defined BISHOP_IN_DANGER
-			bishopInDangerFlag = NotBishopInDanger;
-#endif
 			for (int i = 0; i < 100; ++i) g_randomTimeSeed(); // 最初は乱数に偏りがあるかも。少し回しておく。
 		}
-		else if (token == "usi"      ) { SYNCCOUT << "id name " << engine_name()
-												  << "\nid author Hiraoka Takuya"
-												  << "\n" << options
-												  << "\nusiok" << SYNCENDL; }
-		else if (token == "go"       ) { go(pos, ssCmd); }
-		else if (token == "isready"  ) { SYNCCOUT << "readyok" << SYNCENDL; }
-		else if (token == "position" ) { setPosition(pos, ssCmd); }
-		else if (token == "setoption") { setOption(ssCmd); }
+		else if (token == "usi"      ) SYNCCOUT << "id name " << MyName
+												<< "\nid author Hiraoka Takuya"
+												<< "\n" << options
+												<< "\nusiok" << SYNCENDL;
+		else if (token == "go"       ) go(pos, ssCmd);
+		else if (token == "isready"  ) SYNCCOUT << "readyok" << SYNCENDL;
+		else if (token == "position" ) setPosition(pos, ssCmd);
+		else if (token == "setoption") setOption(ssCmd);
 #if defined LEARN
 		else if (token == "l"        ) {
 			auto learner = std::unique_ptr<Learner>(new Learner);
@@ -507,19 +471,20 @@ void Searcher::doUSICommandLoop(int argc, char* argv[]) {
 #endif
 #if !defined MINIMUL
 		// 以下、デバッグ用
-		else if (token == "bench"    ) { benchmark(pos); }
-		else if (token == "d"        ) { pos.print(); }
-		else if (token == "s"        ) { measureGenerateMoves(pos); }
-		else if (token == "t"        ) { std::cout << pos.mateMoveIn1Ply().toCSA() << std::endl; }
-		else if (token == "b"        ) { makeBook(pos, ssCmd); }
+		else if (token == "bench"    ) benchmark(pos);
+		else if (token == "key"      ) SYNCCOUT << pos.getKey() << SYNCENDL;
+		else if (token == "d"        ) pos.print();
+		else if (token == "s"        ) measureGenerateMoves(pos);
+		else if (token == "t"        ) std::cout << pos.mateMoveIn1Ply().toCSA() << std::endl;
+		else if (token == "b"        ) makeBook(pos, ssCmd);
 #endif
-		else                           { SYNCCOUT << "unknown command: " << cmd << SYNCENDL; }
+		else                           SYNCCOUT << "unknown command: " << cmd << SYNCENDL;
 	} while (token != "quit" && argc == 1);
+
+	threads.mainThread()->waitForSearchFinished();
 
 	if (options["Write_Synthesized_Eval"])
 		Evaluater::writeSynthesized(options["Eval_Dir"]);
-
-	threads.waitForThinkFinished();
 }
 
 // エンジン情報

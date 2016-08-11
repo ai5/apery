@@ -161,9 +161,8 @@ FORCE_INLINE int firstOneFromLSB(const u64 b) {
 // 超絶遅いコードなので後で書き換えること。
 FORCE_INLINE int firstOneFromMSB(const u64 b) {
 	for (int i = 63; 0 <= i; --i) {
-		if (b >> i) {
+		if (b >> i)
 			return 63 - i;
-		}
 	}
 	return 0;
 }
@@ -194,9 +193,8 @@ inline std::string putb(const T value, const int msb = sizeof(T)*8 - 1, const in
 	std::string str;
 	u64 tempValue = (static_cast<u64>(value) >> lsb);
 
-	for (int length = msb - lsb + 1; length; --length) {
+	for (int length = msb - lsb + 1; length; --length)
 		str += ((tempValue & (UINT64_C(1) << (length - 1))) ? "1" : "0");
-	}
 
 	return str;
 }
@@ -284,7 +282,7 @@ private:
 };
 
 // ミリ秒単位の時間を表すクラス
-class Time {
+class Timer {
 public:
 	void restart() { t_ = std::chrono::system_clock::now(); }
 	int elapsed() const {
@@ -292,8 +290,8 @@ public:
 		using std::chrono::milliseconds;
 		return static_cast<int>(duration_cast<milliseconds>(std::chrono::system_clock::now() - t_).count());
 	}
-	static Time currentTime() {
-		Time t;
+	static Timer currentTime() {
+		Timer t;
 		t.restart();
 		return t;
 	}

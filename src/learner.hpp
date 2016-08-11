@@ -98,7 +98,7 @@ inline void lowerDimension(EvaluaterBase<std::array<std::atomic<float>, 2>,
 #ifdef _OPENMP
 #pragma omp for
 #endif
-		for (int ksq = I9; ksq < SquareNum; ++ksq) {
+		for (int ksq = SQ11; ksq < SquareNum; ++ksq) {
 			std::pair<ptrdiff_t, int> indices[base.KPPIndicesMax];
 			for (int i = 0; i < fe_end; ++i) {
 				for (int j = 0; j < fe_end; ++j) {
@@ -113,9 +113,9 @@ inline void lowerDimension(EvaluaterBase<std::array<std::atomic<float>, 2>,
 #ifdef _OPENMP
 #pragma omp for
 #endif
-		for (int ksq0 = I9; ksq0 < SquareNum; ++ksq0) {
+		for (int ksq0 = SQ11; ksq0 < SquareNum; ++ksq0) {
 			std::pair<ptrdiff_t, int> indices[base.KKPIndicesMax];
-			for (Square ksq1 = I9; ksq1 < SquareNum; ++ksq1) {
+			for (Square ksq1 = SQ11; ksq1 < SquareNum; ++ksq1) {
 				for (int i = 0; i < fe_end; ++i) {
 					base.kkpIndices(indices, static_cast<Square>(ksq0), ksq1, i);
 					FOO(indices, base.oneArrayKKP, raw.kkp_raw[ksq0][ksq1][i]);
@@ -128,9 +128,9 @@ inline void lowerDimension(EvaluaterBase<std::array<std::atomic<float>, 2>,
 #ifdef _OPENMP
 #pragma omp for
 #endif
-		for (int ksq0 = I9; ksq0 < SquareNum; ++ksq0) {
+		for (int ksq0 = SQ11; ksq0 < SquareNum; ++ksq0) {
 			std::pair<ptrdiff_t, int> indices[base.KKIndicesMax];
-			for (Square ksq1 = I9; ksq1 < SquareNum; ++ksq1) {
+			for (Square ksq1 = SQ11; ksq1 < SquareNum; ++ksq1) {
 				base.kkIndices(indices, static_cast<Square>(ksq0), ksq1);
 				FOO(indices, base.oneArrayKK, raw.kk_raw[ksq0][ksq1]);
 			}
@@ -174,14 +174,14 @@ public:
 		std::string recordFileName;
 		std::string blackRecordFileName;
 		std::string whiteRecordFileName;
-		size_t threadNum;
 		s64 updateMax;
 		s64 updateMin;
 		ssCmd >> recordFileName;
 		ssCmd >> blackRecordFileName;
 		ssCmd >> whiteRecordFileName;
 		ssCmd >> gameNum;
-		ssCmd >> threadNum;
+		ssCmd >> parse1ThreadNum_;
+		ssCmd >> parse2ThreadNum_;
 		ssCmd >> minDepth_;
 		ssCmd >> maxDepth_;
 		ssCmd >> stepNum_;
@@ -198,11 +198,17 @@ public:
 			updateMin = updateMax;
 			std::cout << "you can set update_min [1, update_max]" << std::endl;
 		}
+		if (parse1ThreadNum_ < 1)
+			std::cout << "you can set parse1_thread_num [1, 64]" << std::endl;
+		if (parse2ThreadNum_ < 1)
+			std::cout << "you can set parse2_thread_num [1, 64]" << std::endl;
+
 		std::cout << "record_file: " << recordFileName
 				  << "\nblack record_file: " << blackRecordFileName
 				  << "\nwhite record_file: " << whiteRecordFileName
 				  << "\nread games: " << (gameNum == 0 ? "all" : std::to_string(gameNum))
-				  << "\nthread_num: " << threadNum
+				  << "\nparse1_thread_num: " << parse1ThreadNum_
+				  << "\nparse2_thread_num: " << parse2ThreadNum_
 				  << "\nsearch_depth min, max: " << minDepth_ << ", " << maxDepth_
 				  << "\nstep_num: " << stepNum_
 				  << "\ngame_num_for_iteration: " << gameNumForIteration_
@@ -213,20 +219,19 @@ public:
 		updateMaxMask_ = (UINT64_C(1) << updateMax) - 1;
 		updateMinMask_ = (UINT64_C(1) << updateMin) - 1;
 		setUpdateMask(stepNum_);
-		readBook(pos, recordFileName, blackRecordFileName, whiteRecordFileName, gameNum);
 		// 既に 1 つのSearcher, Positionが立ち上がっているので、指定した数 - 1 の Searcher, Position を立ち上げる。
-		threadNum = std::max<size_t>(0, threadNum - 1);
+		const size_t threadNum = std::max(parse1ThreadNum_, parse2ThreadNum_) - 1;
 		std::vector<Searcher> searchers(threadNum);
 		for (auto& s : searchers) {
 			s.init();
 			setLearnOptions(s);
 			positions_.push_back(Position(DefaultStartPositionSFEN, s.threads.mainThread(), s.thisptr));
 			mts_.push_back(std::mt19937(std::chrono::system_clock::now().time_since_epoch().count()));
-			// ここでデフォルトコンストラクタでpush_backすると、
-			// 一時オブジェクトのParse2Dataがスタックに出来ることでプログラムが落ちるので、コピーコンストラクタにする。
-			parse2Datum_.push_back(parse2Data_);
 		}
+		for (size_t i = 0; i < parse2ThreadNum_ - 1; ++i)
+			parse2Datum_.emplace_back();
 		setLearnOptions(*pos.searcher());
+		readBook(pos, recordFileName, blackRecordFileName, whiteRecordFileName, gameNum);
 		mt_ = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
 		mt64_ = std::mt19937_64(std::chrono::system_clock::now().time_since_epoch().count());
 		for (int i = 0; ; ++i) {
@@ -346,13 +351,13 @@ private:
 					pos.searcher()->alpha = -ScoreMaxEvaluate;
 					pos.searcher()->beta  =  ScoreMaxEvaluate;
 					go(pos, dist(mt), bmd.move);
-					const Score recordScore = pos.searcher()->rootMoves[0].score_;
+					const Score recordScore = pos.searcher()->threads.mainThread()->rootMoves[0].score_;
 					++moveCount_;
 					bmd.otherPVExist = false;
 					bmd.pvBuffer.clear();
 					if (abs(recordScore) < ScoreMaxEvaluate) {
 						int recordIsNth = 0; // 正解の手が何番目に良い手か。0から数える。
-						auto& recordPv = pos.searcher()->rootMoves[0].pv_;
+						auto& recordPv = pos.searcher()->threads.mainThread()->rootMoves[0].pv_;
 						bmd.pvBuffer.insert(std::end(bmd.pvBuffer), std::begin(recordPv), std::end(recordPv));
 						const auto recordPVSize = bmd.pvBuffer.size();
 						for (MoveList<LegalAll> ml(pos); !ml.end(); ++ml) {
@@ -360,9 +365,9 @@ private:
 								pos.searcher()->alpha = recordScore - FVWindow;
 								pos.searcher()->beta  = recordScore + FVWindow;
 								go(pos, dist(mt), ml.move());
-								const Score score = pos.searcher()->rootMoves[0].score_;
+								const Score score = pos.searcher()->threads.mainThread()->rootMoves[0].score_;
 								if (pos.searcher()->alpha < score && score < pos.searcher()->beta) {
-									auto& pv = pos.searcher()->rootMoves[0].pv_;
+									auto& pv = pos.searcher()->threads.mainThread()->rootMoves[0].pv_;
 									bmd.pvBuffer.insert(std::end(bmd.pvBuffer), std::begin(pv), std::end(pv));
 								}
 								if (recordScore < score)
@@ -380,7 +385,7 @@ private:
 		}
 	}
 	void learnParse1(Position& pos) {
-		Time t = Time::currentTime();
+		Timer t = Timer::currentTime();
 		// 棋譜をシャッフルすることで、先頭 gameNum_ 個の学習に使うデータをランダムに選ぶ。
 		std::shuffle(std::begin(bookMovesDatum_), std::end(bookMovesDatum_), mt_);
 		std::cout << "shuffle elapsed: " << t.elapsed() / 1000 << "[sec]" << std::endl;
@@ -388,8 +393,8 @@ private:
 		moveCount_.store(0);
 		for (auto& pred : predictions_)
 			pred.store(0);
-		std::vector<std::thread> threads(positions_.size());
-		for (size_t i = 0; i < positions_.size(); ++i)
+		std::vector<std::thread> threads(parse1ThreadNum_ - 1);
+		for (size_t i = 0; i < parse1ThreadNum_ - 1; ++i)
 			threads[i] = std::thread([this, i] { learnParse1Body(positions_[i], mts_[i]); });
 		learnParse1Body(pos, mt_);
 		for (auto& thread : threads)
@@ -403,16 +408,14 @@ private:
 		std::cout << std::endl;
 		std::cout << "parse1 elapsed: " << t.elapsed() / 1000 << "[sec]" << std::endl;
 	}
-	static constexpr double FVPenalty() { return (0.2/static_cast<double>(FVScale)); }
+	double FVPenalty(const int v) { return (0.2/static_cast<double>(FVScale)/300.0)*v; }
 	template <bool UsePenalty, typename T>
 	void updateFV(std::array<T, 2>& v, const std::array<std::atomic<float>, 2>& dvRef) {
 		std::array<float, 2> dv = {dvRef[0].load(), dvRef[1].load()};
 		const int step = count1s(mt64_() & updateMask_);
 		for (int i = 0; i < 2; ++i) {
-			if (UsePenalty) {
-				if      (0 < v[i]) dv[i] -= static_cast<float>(FVPenalty());
-				else if (v[i] < 0) dv[i] += static_cast<float>(FVPenalty());
-			}
+			if (UsePenalty)
+				dv[i] -= static_cast<float>(FVPenalty(v[i]));
 
 			// T が enum だと 0 になることがある。
 			// enum のときは、std::numeric_limits<std::underlying_type<T>::type>::max() などを使う。
@@ -481,9 +484,8 @@ private:
 					ss[0].staticEvalRaw.p[0][0] = ss[1].staticEvalRaw.p[0][0] = ScoreNotEvaluated;
 					const Score recordScore = (rootColor == pos.turn() ? evaluate(pos, ss+1) : -evaluate(pos, ss+1));
 					PRINT_PV(std::cout << ", score: " << recordScore << std::endl);
-					for (int jj = recordPVIndex - 1; 0 <= jj; --jj) {
+					for (int jj = recordPVIndex - 1; 0 <= jj; --jj)
 						pos.undoMove(bmd.pvBuffer[jj]);
-					}
 
 					std::array<double, 2> sum_dT = {{0.0, 0.0}};
 					for (int otherPVIndex = recordPVIndex + 1; otherPVIndex < static_cast<int>(bmd.pvBuffer.size()); ++otherPVIndex) {
@@ -503,9 +505,8 @@ private:
 						dT[0] = -dT[0];
 						dT[1] = (pos.turn() == rootColor ? -dT[1] : dT[1]);
 						parse2Data.params.incParam(pos, dT);
-						for (int jj = otherPVIndex - 1; !bmd.pvBuffer[jj].isNone(); --jj) {
+						for (int jj = otherPVIndex - 1; !bmd.pvBuffer[jj].isNone(); --jj)
 							pos.undoMove(bmd.pvBuffer[jj]);
-						}
 					}
 
 					for (int jj = 0; jj < recordPVIndex; ++jj) {
@@ -514,9 +515,8 @@ private:
 					}
 					sum_dT[1] = (pos.turn() == rootColor ? sum_dT[1] : -sum_dT[1]);
 					parse2Data.params.incParam(pos, sum_dT);
-					for (int jj = recordPVIndex - 1; 0 <= jj; --jj) {
+					for (int jj = recordPVIndex - 1; 0 <= jj; --jj)
 						pos.undoMove(bmd.pvBuffer[jj]);
-					}
 				}
 				setUpStates->push(StateInfo());
 				pos.doMove(bmd.move, setUpStates->top());
@@ -524,21 +524,20 @@ private:
 		}
 	}
 	void learnParse2(Position& pos) {
-		Time t;
+		Timer t;
 		for (int step = 1; step <= stepNum_; ++step) {
 			t.restart();
 			std::cout << "step " << step << "/" << stepNum_ << " " << std::flush;
 			index_ = 0;
-			std::vector<std::thread> threads(positions_.size());
-			for (size_t i = 0; i < positions_.size(); ++i)
+			std::vector<std::thread> threads(parse2ThreadNum_ - 1);
+			for (size_t i = 0; i < parse2ThreadNum_ - 1; ++i)
 				threads[i] = std::thread([this, i] { learnParse2Body(positions_[i], parse2Datum_[i]); });
 			learnParse2Body(pos, parse2Data_);
 			for (auto& thread : threads)
 				thread.join();
 
-			for (auto& parse2 : parse2Datum_) {
+			for (auto& parse2 : parse2Datum_)
 				parse2Data_.params += parse2.params;
-			}
 			parse2EvalBase_.clear();
 			lowerDimension(parse2EvalBase_, parse2Data_.params);
 			setUpdateMask(step);
@@ -551,10 +550,10 @@ private:
 		}
 	}
 	void print() {
-		for (Rank r = Rank9; r < RankNum; ++r) {
-			for (File f = FileA; FileI <= f; --f) {
+		for (Rank r = Rank1; r < RankNum; ++r) {
+			for (File f = File9; File1 <= f; --f) {
 				const Square sq = makeSquare(f, r);
-				printf("%5d", Evaluater::KPP[B2][f_gold + C2][f_gold + sq][0]);
+				printf("%5d", Evaluater::KPP[SQ88][f_gold + SQ78][f_gold + sq][0]);
 			}
 			printf("\n");
 		}
@@ -588,6 +587,7 @@ private:
 	u64 updateMaxMask_;
 	u64 updateMinMask_;
 	u64 updateMask_;
+	size_t parse1ThreadNum_, parse2ThreadNum_;
 };
 
 #endif
