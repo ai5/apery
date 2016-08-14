@@ -32,7 +32,7 @@ ifeq ($(TARGET_ARCH_ABI),x86_64)
 endif
 
 ifeq ($(TARGET_ARCH_ABI),armeabi-v7a)
-  ARCH_DEF += -mfpu=neon -DIS_ARM -DHAVE_SSE2
+  ARCH_DEF += -mfpu=neon -DIS_ARM
 endif
 
 ifeq ($(TARGET_ARCH_ABI),x86)
@@ -40,9 +40,9 @@ ifeq ($(TARGET_ARCH_ABI),x86)
 endif
 
 
-LOCAL_CXXFLAGS  := -std=c++11 -fno-exceptions -fno-rtti  -Wextra -Ofast -MMD -MP -DNDEBUG -D__STDC_CONSTANT_MACROS -pthread $(ARCH_DEF)
+LOCAL_CXXFLAGS  := -std=c++11 -fno-exceptions -fno-rtti  -Wextra -Ofast -MMD -MP -DNDEBUG -D__STDC_CONSTANT_MACROS $(ARCH_DEF)
 LOCAL_CXXFLAGS += -fPIE
 LOCAL_LDFLAGS += -fPIE -pie
 
-#LOCAL_STATIC_LIBRARIES    := -lpthread
+#LOCAL_STATIC_LIBRARIES    := 
 include $(BUILD_EXECUTABLE)
