@@ -10,12 +10,7 @@ const std::string DefaultStartPositionSFEN = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PP
 struct OptionsMap;
 
 class USIOption {
-#if defined(_MSC_VER)
-	typedef void(Fn)(Searcher*, const USIOption&);
-#else
     using Fn = void (Searcher*, const USIOption&);
-#endif
-
 public:
 	USIOption(Fn* = nullptr, Searcher* s = nullptr);
 	USIOption(const char* v, Fn* = nullptr, Searcher* s = nullptr);

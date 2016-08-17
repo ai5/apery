@@ -9,12 +9,8 @@ enum Color {
 
 OverloadEnumOperators(Color);
 
-#if defined(_MSC_VER)
-#define oppositeColor(c) ((c) == Black) ? White : Black
-#else
 inline constexpr Color oppositeColor(const Color c) {
 	return static_cast<Color>(static_cast<int>(c) ^ 1);
 }
-#endif
 
 #endif // #ifndef APERY_COLOR_HPP

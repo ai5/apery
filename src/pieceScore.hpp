@@ -4,19 +4,19 @@
 #include "score.hpp"
 #include "piece.hpp"
 
-const Score PawnScore             = static_cast<Score>( static_cast<int>(100 * 9 / 10));
-const Score LanceScore            = static_cast<Score>( static_cast<int>(350 * 9 / 10));
-const Score KnightScore           = static_cast<Score>( static_cast<int>(450 * 9 / 10));
-const Score SilverScore           = static_cast<Score>( static_cast<int>(550 * 9 / 10));
-const Score GoldScore             = static_cast<Score>( static_cast<int>(600 * 9 / 10));
-const Score BishopScore           = static_cast<Score>( static_cast<int>(950 * 9 / 10));
-const Score RookScore             = static_cast<Score>( static_cast<int>(1100 * 9 / 10));
-const Score ProPawnScore          = static_cast<Score>( static_cast<int>(600 * 9 / 10));
-const Score ProLanceScore         = static_cast<Score>( static_cast<int>(600 * 9 / 10));
-const Score ProKnightScore        = static_cast<Score>( static_cast<int>(600 * 9 / 10));
-const Score ProSilverScore        = static_cast<Score>( static_cast<int>(600 * 9 / 10));
-const Score HorseScore            = static_cast<Score>(static_cast<int>(1050 * 9 / 10));
-const Score DragonScore           = static_cast<Score>(static_cast<int>(1550 * 9 / 10));
+const Score PawnScore             = static_cast<Score>( 100 * 9 / 10);
+const Score LanceScore            = static_cast<Score>( 350 * 9 / 10);
+const Score KnightScore           = static_cast<Score>( 450 * 9 / 10);
+const Score SilverScore           = static_cast<Score>( 550 * 9 / 10);
+const Score GoldScore             = static_cast<Score>( 600 * 9 / 10);
+const Score BishopScore           = static_cast<Score>( 950 * 9 / 10);
+const Score RookScore             = static_cast<Score>(1100 * 9 / 10);
+const Score ProPawnScore          = static_cast<Score>( 600 * 9 / 10);
+const Score ProLanceScore         = static_cast<Score>( 600 * 9 / 10);
+const Score ProKnightScore        = static_cast<Score>( 600 * 9 / 10);
+const Score ProSilverScore        = static_cast<Score>( 600 * 9 / 10);
+const Score HorseScore            = static_cast<Score>(1050 * 9 / 10);
+const Score DragonScore           = static_cast<Score>(1550 * 9 / 10);
 
 const Score KingScore             = static_cast<Score>(15000);
 

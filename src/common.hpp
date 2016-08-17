@@ -14,6 +14,7 @@
 #include <map>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <random>
 #include <thread>
 #include <mutex>
@@ -77,21 +78,6 @@
 #else
 #define FORCE_INLINE inline
 #endif
-
-#if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
-#ifdef _HAS_CONSTEXPR
-#define CONSTEXPR constexpr
-#else
-#define CONSTEXPR
-#endif
-#elif defined(__INTEL_COMPILER)
-#define CONSTEXPR constexpr
-#elif defined(__GNUC__)
-#define CONSTEXPR constexpr
-#else
-#define CONSTEXPR constexpr
-#endif
-
 
 // インラインアセンブリのコメントを使用することで、
 // C++ コードのどの部分がアセンブラのどの部分に対応するかを
