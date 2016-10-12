@@ -28,7 +28,9 @@ void benchmark(Position& pos) {
     std::string options[] = {"name Threads value 1",
                              "name MultiPV value 1",
                              "name OwnBook value false",
-                             "name Max_Random_Score_Diff value 0"};
+                             "name Max_Random_Score_Diff value 0",
+		"name USI_Hash value 32"
+	};
     for (auto& str : options) {
         std::istringstream is(str);
         pos.searcher()->setOption(is);
@@ -40,7 +42,7 @@ void benchmark(Position& pos) {
         std::cout << sfen << std::endl;
         std::istringstream ss_sfen(sfen);
         setPosition(pos, ss_sfen);
-        std::istringstream ss_go("byoyomi 10000");
+        std::istringstream ss_go("depth 15");
         go(pos, ss_go);
         pos.searcher()->threads.main()->waitForSearchFinished();
     }
