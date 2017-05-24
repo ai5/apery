@@ -3,7 +3,7 @@
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
   Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2011-2017 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -143,15 +143,15 @@ inline void lowerDimension(EvaluatorBase<std::array<std::atomic<float>, 2>,
                            std::array<std::atomic<float>, 2> >& base, const EvaluatorGradient& grad)
 {
 #define FOO(indices, oneArray, sum)                                     \
-    for (auto indexAndWeight : indices) {                               \
-        if (indexAndWeight.first == std::numeric_limits<ptrdiff_t>::max()) break; \
-        if (0 <= indexAndWeight.first) {                                \
-            atomicAdd((*oneArray( indexAndWeight.first))[0], sum[0] * indexAndWeight.second / base.MaxWeight()); \
-            atomicAdd((*oneArray( indexAndWeight.first))[1], sum[1] * indexAndWeight.second / base.MaxWeight()); \
+    for (auto index : indices) {                                        \
+        if (index == std::numeric_limits<ptrdiff_t>::max()) break;      \
+        if (0 <= index) {                                               \
+            atomicAdd((*oneArray( index))[0], sum[0]);                  \
+            atomicAdd((*oneArray( index))[1], sum[1]);                  \
         }                                                               \
         else {                                                          \
-            atomicSub((*oneArray(-indexAndWeight.first))[0], sum[0] * indexAndWeight.second / base.MaxWeight()); \
-            atomicAdd((*oneArray(-indexAndWeight.first))[1], sum[1] * indexAndWeight.second / base.MaxWeight()); \
+            atomicSub((*oneArray(-index))[0], sum[0]);                  \
+            atomicAdd((*oneArray(-index))[1], sum[1]);                  \
         }                                                               \
     }
 
@@ -165,7 +165,7 @@ inline void lowerDimension(EvaluatorBase<std::array<std::atomic<float>, 2>,
 #pragma omp for
 #endif
         for (int ksq = SQ11; ksq < SquareNum; ++ksq) {
-            std::pair<ptrdiff_t, int> indices[KPPIndicesMax];
+            ptrdiff_t indices[KPPIndicesMax];
             for (int i = 0; i < fe_end; ++i) {
                 for (int j = 0; j < fe_end; ++j) {
                     base.kppIndices(indices, static_cast<Square>(ksq), i, j);
@@ -180,7 +180,7 @@ inline void lowerDimension(EvaluatorBase<std::array<std::atomic<float>, 2>,
 #pragma omp for
 #endif
         for (int ksq0 = SQ11; ksq0 < SquareNum; ++ksq0) {
-            std::pair<ptrdiff_t, int> indices[KKPIndicesMax];
+            ptrdiff_t indices[KKPIndicesMax];
             for (Square ksq1 = SQ11; ksq1 < SquareNum; ++ksq1) {
                 for (int i = 0; i < fe_end; ++i) {
                     base.kkpIndices(indices, static_cast<Square>(ksq0), ksq1, i);
@@ -195,7 +195,7 @@ inline void lowerDimension(EvaluatorBase<std::array<std::atomic<float>, 2>,
 #pragma omp for
 #endif
         for (int ksq0 = SQ11; ksq0 < SquareNum; ++ksq0) {
-            std::pair<ptrdiff_t, int> indices[KKIndicesMax];
+            ptrdiff_t indices[KKIndicesMax];
             for (Square ksq1 = SQ11; ksq1 < SquareNum; ++ksq1) {
                 base.kkIndices(indices, static_cast<Square>(ksq0), ksq1);
                 FOO(indices, base.oneArrayKK, grad.kk_grad[ksq0][ksq1]);
@@ -211,15 +211,15 @@ inline void lowerDimension(EvaluatorBase<std::array<std::atomic<double>, 2>,
                            std::array<std::atomic<double>, 2> >& base, const TriangularEvaluatorGradient& grad)
 {
 #define FOO(indices, oneArray, sum)                                     \
-    for (auto indexAndWeight : indices) {                               \
-        if (indexAndWeight.first == std::numeric_limits<ptrdiff_t>::max()) break; \
-        if (0 <= indexAndWeight.first) {                                \
-            atomicAdd((*oneArray( indexAndWeight.first))[0], sum[0] * indexAndWeight.second / base.MaxWeight()); \
-            atomicAdd((*oneArray( indexAndWeight.first))[1], sum[1] * indexAndWeight.second / base.MaxWeight()); \
+    for (auto index : indices) {                                        \
+        if (index == std::numeric_limits<ptrdiff_t>::max()) break;      \
+        if (0 <= index) {                                               \
+            atomicAdd((*oneArray( index))[0], sum[0]);                  \
+            atomicAdd((*oneArray( index))[1], sum[1]);                  \
         }                                                               \
         else {                                                          \
-            atomicSub((*oneArray(-indexAndWeight.first))[0], sum[0] * indexAndWeight.second / base.MaxWeight()); \
-            atomicAdd((*oneArray(-indexAndWeight.first))[1], sum[1] * indexAndWeight.second / base.MaxWeight()); \
+            atomicSub((*oneArray(-index))[0], sum[0]);                  \
+            atomicAdd((*oneArray(-index))[1], sum[1]);                  \
         }                                                               \
     }
 
@@ -233,7 +233,7 @@ inline void lowerDimension(EvaluatorBase<std::array<std::atomic<double>, 2>,
 #pragma omp for
 #endif
         for (int ksq = SQ11; ksq < SquareNum; ++ksq) {
-            std::pair<ptrdiff_t, int> indices[KPPIndicesMax];
+            ptrdiff_t indices[KPPIndicesMax];
             for (int i = 0; i < fe_end; ++i) {
                 for (int j = 0; j <= i; ++j) { // 三角配列なので、i までで良い。
                     base.kppIndices(indices, static_cast<Square>(ksq), i, j);
@@ -248,7 +248,7 @@ inline void lowerDimension(EvaluatorBase<std::array<std::atomic<double>, 2>,
 #pragma omp for
 #endif
         for (int ksq0 = SQ11; ksq0 < SquareNum; ++ksq0) {
-            std::pair<ptrdiff_t, int> indices[KKPIndicesMax];
+            ptrdiff_t indices[KKPIndicesMax];
             for (Square ksq1 = SQ11; ksq1 < SquareNum; ++ksq1) {
                 for (int i = 0; i < fe_end; ++i) {
                     base.kkpIndices(indices, static_cast<Square>(ksq0), ksq1, i);
@@ -263,7 +263,7 @@ inline void lowerDimension(EvaluatorBase<std::array<std::atomic<double>, 2>,
 #pragma omp for
 #endif
         for (int ksq0 = SQ11; ksq0 < SquareNum; ++ksq0) {
-            std::pair<ptrdiff_t, int> indices[KKIndicesMax];
+            ptrdiff_t indices[KKIndicesMax];
             for (Square ksq1 = SQ11; ksq1 < SquareNum; ++ksq1) {
                 base.kkIndices(indices, static_cast<Square>(ksq0), ksq1);
                 FOO(indices, base.oneArrayKK, grad.kk_grad[ksq0][ksq1]);
@@ -334,7 +334,7 @@ struct BookMoveData {
 class Learner {
 public:
     void learn(Position& pos, std::istringstream& ssCmd) {
-        eval_.init(Evaluator::evalDir, false);
+        eval_.init(pos.searcher()->options["Eval_Dir"], false);
         s64 gameNum;
         std::string recordFileName;
         std::string blackRecordFileName;
@@ -709,8 +709,8 @@ private:
             setUpdateMask(step);
             std::cout << "update eval ... " << std::flush;
             const bool writeReadBase = (step == stepNum_);
-            if (usePenalty_) updateEval<true >(Evaluator::evalDir, writeReadBase);
-            else             updateEval<false>(Evaluator::evalDir, writeReadBase);
+            if (usePenalty_) updateEval<true >(pos.searcher()->options["Eval_Dir"], writeReadBase);
+            else             updateEval<false>(pos.searcher()->options["Eval_Dir"], writeReadBase);
             std::cout << "done" << std::endl;
             std::cout << "parse2 1 step elapsed: " << t.elapsed() / 1000 << "[sec]" << std::endl;
             print();

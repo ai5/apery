@@ -19,9 +19,25 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "square.hpp"
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <cinttypes>
 
-Direction SquareRelation[SquareNum][SquareNum];
-
-// 何かの駒で一手で行ける位置関係についての距離のテーブル。桂馬の位置は距離1とする。
-int SquareDistance[SquareNum][SquareNum];
+int main(int argc, char *argv[]) {
+    if (argc != 3) {
+        std::cout << "USAGE: " << argv[0] << " <input 4byte elements> <output 2byte elements>\n" << std::endl;
+        return 0;
+    }
+    std::ifstream ifs(argv[1], std::ios::binary);
+    const size_t fileSize = static_cast<size_t>(ifs.seekg(0, std::ios::end).tellg());
+    ifs.seekg(0, std::ios::beg); // ストリームのポインタを一番前に戻して、これから先で使いやすいようにする
+    std::vector<int32_t> buf(fileSize/sizeof(int32_t));
+    std::vector<int16_t> outbuf(buf.size());
+    ifs.read(reinterpret_cast<char*>(buf.data()), fileSize);
+    std::copy(std::begin(buf), std::end(buf), std::begin(outbuf));
+    std::ofstream ofs(argv[2], std::ios::binary);
+    ofs.write(reinterpret_cast<char*>(outbuf.data()), outbuf.size() * sizeof(int16_t));
+}

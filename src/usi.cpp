@@ -3,7 +3,7 @@
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
   Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2011-2017 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -92,13 +92,13 @@ void OptionsMap::init(Searcher* s) {
 #endif
     (*this)["Clear_Hash"]                  = USIOption(onClearHash, s);
     (*this)["Book_File"]                   = USIOption("book/20150503/book.bin");
+    (*this)["Eval_Dir"]                    = USIOption("20170329");
     (*this)["Best_Book_Move"]              = USIOption(false);
     (*this)["OwnBook"]                     = USIOption(true);
     (*this)["Min_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
     (*this)["Max_Book_Ply"]                = USIOption(SHRT_MAX, 0, SHRT_MAX);
     (*this)["Min_Book_Score"]              = USIOption(-180, -ScoreInfinite, ScoreInfinite);
     (*this)["USI_Ponder"]                  = USIOption(true);
-    (*this)["Time_Margin"]                 = USIOption(500, 0, INT_MAX);
     (*this)["Byoyomi_Margin"]              = USIOption(500, 0, INT_MAX);
     (*this)["Time_Margin"]                 = USIOption(4500, 0, INT_MAX);
     (*this)["MultiPV"]                     = USIOption(1, 1, MaxLegalMoves);
@@ -113,7 +113,7 @@ void OptionsMap::init(Searcher* s) {
     (*this)["Minimum_Thinking_Time"]       = USIOption(20, 0, INT_MAX);
     (*this)["Threads"]                     = USIOption(cpuCoreCount(), 1, MaxThreads, onThreads, s);
 #ifdef NDEBUG
-    (*this)["Engine_Name"]                 = USIOption("ukamuse_SDT4");
+    (*this)["Engine_Name"]                 = USIOption("Apery");
 #else
     (*this)["Engine_Name"]                 = USIOption("Apery Debug Build");
 #endif
@@ -242,8 +242,8 @@ bool extractPVFromTT(Position& pos, Move* moves, const Move bestMove) {
     bool ttHit;
 
     tte = pos.csearcher()->tt.probe(pos.getKey(), ttHit);
-    if (ttHit && move16toMove(tte->move(), pos) != bestMove)
-        return false; // 教師の手と異なる手の場合は学習しないので false。手が無い時は学習するので true
+    //if (ttHit && move16toMove(tte->move(), pos) != bestMove)
+    //    return false; // 教師の手と異なる手の場合は学習しないので false。手が無い時は学習するので true
     while (ttHit
            && pos.moveIsPseudoLegal(m = move16toMove(tte->move(), pos))
            && pos.pseudoLegalMoveIsLegal<false, false>(m, pos.pinnedBB())
@@ -413,37 +413,51 @@ void make_teacher(std::istringstream& ssCmd) {
             double randomMoveRateThresh = 0.2;
             std::unordered_set<Key> keyHash;
             StateListPtr states = StateListPtr(new std::deque<StateInfo>(1));
+            std::vector<HuffmanCodedPosAndEval> hcpevec;
+            GameResult gameResult = Draw;
             for (Ply ply = pos.gamePly(); ply < 400; ++ply, ++idx) { // 400 手くらいで終了しておく。
+#if 0 // 自己対局の勝敗を記録する為、対局途中でのランダムムーブは行わない。
                 if (!pos.inCheck() && doRandomMoveDist(mt) <= randomMoveRateThresh) { // 王手が掛かっていない局面で、randomMoveRateThresh の確率でランダムに局面を動かす。
                     randomMove(pos, mt);
                     ply = 0;
                     randomMoveRateThresh /= 2; // 局面を進めるごとに未知の局面になっていくので、ランダムに動かす確率を半分ずつ減らす。
                 }
+#endif
                 const Key key = pos.getKey();
                 if (keyHash.find(key) == std::end(keyHash))
                     keyHash.insert(key);
-                else // 同一局面 2 回目で千日手判定とする。
+                else { // 同一局面 2 回目で千日手判定とする。
+                    gameResult = Draw;
                     break;
+                }
                 pos.searcher()->alpha = -ScoreMaxEvaluate;
                 pos.searcher()->beta  =  ScoreMaxEvaluate;
                 go(pos, static_cast<Depth>(6));
                 const Score score = pos.searcher()->threads.main()->rootMoves[0].score;
                 const Move bestMove = pos.searcher()->threads.main()->rootMoves[0].pv[0];
-                if (3000 < abs(score)) // 差が付いたので投了した事にする。
+                const int ScoreThresh = 3000; // 自己対局を決着がついたとして止める閾値
+                if (ScoreThresh < abs(score)) { // 差が付いたので投了した事にする。
+                    if (pos.turn() == Black)
+                        gameResult = (score < ScoreZero ? WhiteWin : BlackWin);
+                    else
+                        gameResult = (score < ScoreZero ? BlackWin : WhiteWin);
                     break;
-                else if (!bestMove) // 勝ち宣言など
+                }
+                else if (!bestMove) { // 勝ち宣言
+                    gameResult = (pos.turn() == Black ? BlackWin : WhiteWin);
                     break;
+                }
 
                 {
-                    HuffmanCodedPosAndEval hcpe;
+                    hcpevec.emplace_back(HuffmanCodedPosAndEval());
+                    HuffmanCodedPosAndEval& hcpe = hcpevec.back();
                     hcpe.hcp = pos.toHuffmanCodedPos();
                     auto& pv = pos.searcher()->threads.main()->rootMoves[0].pv;
-                    Ply tmpPly = 0;
                     const Color rootTurn = pos.turn();
                     StateInfo state[MaxPly+7];
                     StateInfo* st = state;
-                    while (pv[tmpPly])
-                        pos.doMove(pv[tmpPly++], *st++);
+                    for (size_t i = 0; i < pv.size(); ++i)
+                        pos.doMove(pv[i], *st++);
                     // evaluate() の差分計算を無効化する。
                     SearchStack ss[2];
                     ss[0].staticEvalRaw.p[0][0] = ss[1].staticEvalRaw.p[0][0] = ScoreNotEvaluated;
@@ -452,16 +466,18 @@ void make_teacher(std::istringstream& ssCmd) {
                     hcpe.eval = (rootTurn == pos.turn() ? eval : -eval);
                     hcpe.bestMove16 = static_cast<u16>(pv[0].value());
 
-                    while (tmpPly)
-                        pos.undoMove(pv[--tmpPly]);
-
-                    std::unique_lock<Mutex> lock(omutex);
-                    ofs.write(reinterpret_cast<char*>(&hcpe), sizeof(hcpe));
+                    for (size_t i = pv.size(); i > 0;)
+                        pos.undoMove(pv[--i]);
                 }
 
                 states->push_back(StateInfo());
                 pos.doMove(bestMove, states->back());
             }
+            // 勝敗を1局全てに付ける。
+            for (auto& elem : hcpevec)
+                elem.gameResult = gameResult;
+            std::unique_lock<Mutex> lock(omutex);
+            ofs.write(reinterpret_cast<char*>(hcpevec.data()), sizeof(HuffmanCodedPosAndEval) * hcpevec.size());
         }
     };
     auto progressFunc = [&teacherNodes] (std::atomic<s64>& index, Timer& t) {
@@ -623,7 +639,7 @@ namespace {
 
 constexpr s64 NodesPerIteration = 1000000; // 1回評価値を更新するのに使う教師局面数
 
-void use_teacher(Position& /*pos*/, std::istringstream& ssCmd) {
+void use_teacher(Position& pos, std::istringstream& ssCmd) {
     std::string teacherFileName;
     int threadNum;
     ssCmd >> teacherFileName;
@@ -711,8 +727,8 @@ void use_teacher(Position& /*pos*/, std::istringstream& ssCmd) {
     auto meanSquareOfLowerDimensionedEvaluatorGradient = std::unique_ptr<LowerDimensionedEvaluatorGradient>(new LowerDimensionedEvaluatorGradient); // 過去の gradient の mean square (二乗総和)
     auto evalBase = std::unique_ptr<EvalBaseType>(new EvalBaseType); // double で保持した評価関数の要素。相対位置などに分解して保持する。
     auto averagedEvalBase = std::unique_ptr<EvalBaseType>(new EvalBaseType); // ファイル保存する際に評価ベクトルを平均化したもの。
-    auto eval = std::unique_ptr<Evaluator>(new Evaluator); // 整数化した表関数。相対位置などに分解して保持する。
-    eval->init(Evaluator::evalDir, false);
+    auto eval = std::unique_ptr<Evaluator>(new Evaluator); // 整数化した評価関数。相対位置などに分解して保持する。
+    eval->init(pos.searcher()->options["Eval_Dir"], false);
     copyEval(*evalBase, *eval); // 小数に直してコピー。
     memcpy(averagedEvalBase.get(), evalBase.get(), sizeof(EvalBaseType));
     const size_t fileSize = static_cast<size_t>(ifs.seekg(0, std::ios::end).tellg());
@@ -725,14 +741,14 @@ void use_teacher(Position& /*pos*/, std::istringstream& ssCmd) {
         copyEval(*eval, *averagedEvalBase); // 平均化した物を整数の評価値にコピー
         //copyEval(*eval, *evalBase); // 平均化せずに整数の評価値にコピー
         std::cout << "write eval ... " << std::flush;
-        eval->write(Evaluator::evalDir);
+        eval->write(pos.searcher()->options["Eval_Dir"]);
         std::cout << "done" << std::endl;
     };
     // 平均化していない合成後の評価関数バイナリも出力しておく。
     auto writeSyn = [&] {
-        std::ofstream((Evaluator::evalDir + "/KPP_synthesized.bin").c_str()).write((char*)Evaluator::KPP, sizeof(Evaluator::KPP));
-        std::ofstream((Evaluator::evalDir + "/KKP_synthesized.bin").c_str()).write((char*)Evaluator::KKP, sizeof(Evaluator::KKP));
-        std::ofstream((Evaluator::evalDir + "/KK_synthesized.bin" ).c_str()).write((char*)Evaluator::KK , sizeof(Evaluator::KK ));
+        std::ofstream((Evaluator::addSlashIfNone(pos.searcher()->options["Eval_Dir"]) + "KPP_synthesized.bin").c_str()).write((char*)Evaluator::KPP, sizeof(Evaluator::KPP));
+        std::ofstream((Evaluator::addSlashIfNone(pos.searcher()->options["Eval_Dir"]) + "KKP_synthesized.bin").c_str()).write((char*)Evaluator::KKP, sizeof(Evaluator::KKP));
+        std::ofstream((Evaluator::addSlashIfNone(pos.searcher()->options["Eval_Dir"]) + "KK_synthesized.bin" ).c_str()).write((char*)Evaluator::KK , sizeof(Evaluator::KK ));
     };
     Timer t;
     // 教師データ全てから学習した時点で終了する。
@@ -764,7 +780,7 @@ void use_teacher(Position& /*pos*/, std::istringstream& ssCmd) {
             writeSyn();
         }
         copyEval(*eval, *evalBase); // 整数の評価値にコピー
-        eval->init(Evaluator::evalDir, false, false); // 探索で使う評価関数の更新
+        eval->init(pos.searcher()->options["Eval_Dir"], false, false); // 探索で使う評価関数の更新
         g_evalTable.clear(); // 評価関数のハッシュテーブルも更新しないと、これまで探索した評価値と矛盾が生じる。
         std::cout << "iteration elapsed: " << t.elapsed() / 1000 << "[sec]" << std::endl;
         std::cout << "loss: " << std::accumulate(std::begin(losses), std::end(losses), 0.0) << std::endl;
@@ -1070,7 +1086,7 @@ void Searcher::doUSICommandLoop(int argc, char* argv[]) {
             if (!evalTableIsRead) {
                 // 一時オブジェクトを生成して Evaluator::init() を呼んだ直後にオブジェクトを破棄する。
                 // 評価関数の次元下げをしたデータを格納する分のメモリが無駄な為、
-                std::unique_ptr<Evaluator>(new Evaluator)->init(Evaluator::evalDir, true);
+                std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
                 evalTableIsRead = true;
             }
             SYNCCOUT << "readyok" << SYNCENDL;
@@ -1078,8 +1094,8 @@ void Searcher::doUSICommandLoop(int argc, char* argv[]) {
         else if (token == "setoption") setOption(ssCmd);
         else if (token == "write_eval") { // 対局で使う為の評価関数バイナリをファイルに書き出す。
             if (!evalTableIsRead)
-                std::unique_ptr<Evaluator>(new Evaluator)->init(Evaluator::evalDir, true);
-            Evaluator::writeSynthesized(Evaluator::evalDir);
+                std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
+            Evaluator::writeSynthesized(options["Eval_Dir"]);
         }
 #if defined LEARN
         else if (token == "l"        ) {
@@ -1088,14 +1104,14 @@ void Searcher::doUSICommandLoop(int argc, char* argv[]) {
         }
         else if (token == "make_teacher") {
             if (!evalTableIsRead) {
-                std::unique_ptr<Evaluator>(new Evaluator)->init(Evaluator::evalDir, true);
+                std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
                 evalTableIsRead = true;
             }
             make_teacher(ssCmd);
         }
         else if (token == "use_teacher") {
             if (!evalTableIsRead) {
-                std::unique_ptr<Evaluator>(new Evaluator)->init(Evaluator::evalDir, true);
+                std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
                 evalTableIsRead = true;
             }
             use_teacher(pos, ssCmd);
@@ -1109,7 +1125,7 @@ void Searcher::doUSICommandLoop(int argc, char* argv[]) {
         // 以下、デバッグ用
         else if (token == "bench"    ) {
             if (!evalTableIsRead) {
-                std::unique_ptr<Evaluator>(new Evaluator)->init(Evaluator::evalDir, true);
+                std::unique_ptr<Evaluator>(new Evaluator)->init(options["Eval_Dir"], true);
                 evalTableIsRead = true;
             }
             benchmark(pos);

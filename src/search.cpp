@@ -3,7 +3,7 @@
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
   Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2011-2017 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ namespace {
     const int SkillLevel = 20; // [0, 20] 大きいほど強くする予定。現状 20 以外未対応。
 
     const int RazorMargin[4] = { 483, 570, 603, 554 };
-    inline Score futilityMargin(const Depth depth) { return static_cast<Score>(150 * depth / OnePly); }
+    inline Score futilityMargin(const Depth depth) { return static_cast<Score>(75 * depth / OnePly); }
 
     int FutilityMoveCounts[2][16]; // [improving][depth]
     int Reductions[2][2][64][64];  // [pv][improving][depth][moveNumber]
@@ -360,7 +360,6 @@ Score Searcher::qsearch(Position& pos, SearchStack* ss, Score alpha, Score beta,
         && ttScore != ScoreNone // アクセス競合が起きたときのみ、ここに引っかかる。
         && (ttScore >= beta ? (tte->bound() & BoundLower) : (tte->bound() & BoundUpper)))
     {
-        ss->currentMove = ttMove;
         return ttScore;
     }
 
@@ -593,9 +592,12 @@ void Thread::search() {
             if (!mainThread)
                 continue;
 
-            if (searcher->signals.stop)
+            if (searcher->signals.stop) {
+#if 0
                 SYNCCOUT << "info nodes " << searcher->threads.nodesSearched()
                          << " time " << searcher->timeManager.elapsed() << SYNCENDL;
+#endif
+            }
             else if ((pvIdx + 1 == multiPV || searcher->timeManager.elapsed() > 3000)
                      // 将棋所のコンソールが詰まるのを防ぐ。
                      && (rootDepth < 10 * OnePly || lastInfoTime + 200 < searcher->timeManager.elapsed()))
@@ -791,7 +793,6 @@ Score Searcher::search(Position& pos, SearchStack* ss, Score alpha, Score beta, 
         && ttScore != ScoreNone
         && (ttScore >= beta ? (tte->bound() & BoundLower) : (tte->bound() & BoundUpper)))
     {
-        ss->currentMove = ttMove;
         if (ttScore >= beta && ttMove) {
             const int d = depth / OnePly;
             if (!ttMove.isCaptureOrPawnPromotion()) {
@@ -868,7 +869,7 @@ Score Searcher::search(Position& pos, SearchStack* ss, Score alpha, Score beta, 
         && eval - futilityMargin(depth) >= beta
         && eval < ScoreKnownWin) // todo: non_pawn_material に相当する条件を付けるべきか？
     {
-        return eval - futilityMargin(depth);
+        return eval;
     }
 
     // step8
@@ -1050,6 +1051,7 @@ movesLoop:
 
                 // futility pruning: parent node
                 if (lmrDepth < 7
+                    && !inCheck
                     && ss->staticEval + 256 + 200 * lmrDepth <= alpha)
                     continue;
 
@@ -1059,6 +1061,7 @@ movesLoop:
                     continue;
             }
             else if (depth < 7 * OnePly
+                     && !extension
                      && pos.seeSign(move) < Score(-35 * depth / OnePly * depth / OnePly))
                 continue;
         }
@@ -1365,6 +1368,11 @@ void MainThread::search() {
 #if defined LEARN
     maxPly = 0;
     rootDepth = Depth0;
+    if (rootMoves.empty()) {
+        rootMoves.push_back(RootMove(Move::moveNone()));
+        rootMoves.back().score = -ScoreMate0Ply;
+        return;
+    }
     Thread::search();
 #else
     auto& options = searcher->options;
@@ -1475,8 +1483,12 @@ finalize:
 
     previousScore = bestThread->rootMoves[0].score;
 
+#if 0
     if (bestThread != this)
         SYNCCOUT << pvInfoToUSI(bestThread->rootPos, 1, bestThread->completedDepth, -ScoreInfinite, ScoreInfinite) << SYNCENDL;
+#else
+    SYNCCOUT << pvInfoToUSI(bestThread->rootPos, 1, bestThread->completedDepth, -ScoreInfinite, ScoreInfinite) << SYNCENDL;
+#endif
 
     if (nyugyokuWin)
         SYNCCOUT << "bestmove win" << SYNCENDL;

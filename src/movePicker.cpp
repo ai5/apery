@@ -3,7 +3,7 @@
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
   Copyright (C) 2015-2016 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
-  Copyright (C) 2011-2016 Hiraoka Takuya
+  Copyright (C) 2011-2017 Hiraoka Takuya
 
   Apery is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -158,8 +158,7 @@ Move MovePicker::nextMove() {
     case EvasionsInit:
         cur_ = first();
         endMoves_ = generateMoves<Evasion>(cur_, pos_);
-        if (endMoves_ - cur_ - (ttMove_ != Move::moveNone()) > 1)
-            scoreEvasions();
+        scoreEvasions();
         ++stage_;
     case AllEvasions:
         while (cur_ < endMoves_) {
@@ -272,12 +271,9 @@ void MovePicker::scoreEvasions() {
     const HistoryStats& history = pos_.thisThread()->history;
     const FromToStats& fromTo = pos_.thisThread()->fromTo;
     Color c = pos_.turn();
-    Score see;
 
     for (ExtMove& m : *this)
-        if ((see = pos_.seeSign(m.move)) < ScoreZero)
-            m.score = see - HistoryStats::Max;
-        else if (m.move.isCaptureOrPawnPromotion()) {
+        if (m.move.isCaptureOrPawnPromotion()) {
             m.score = pos_.capturePieceScore(pos_.piece(m.move.to())) + HistoryStats::Max;
             if (m.move.isPromotion()) {
                 const PieceType pt = pieceToPieceType(pos_.piece(m.move.from()));
