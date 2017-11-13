@@ -32,13 +32,16 @@ class GameManager
     @win       = [0, 0]
     @draw      = 0
 
-    @file      = File.open(argv[2], "a") if 2 < argv.size && argv[2] != '-'
-    thread_num = argv[3].to_i            if 3 < argv.size
-    @game_num  = argv[4].to_i            if 4 < argv.size
-    @movetime  = argv[5]                 if 5 < argv.size
-    @win[0]    = argv[6].to_i            if 6 < argv.size
-    @win[1]    = argv[7].to_i            if 7 < argv.size
-    @draw      = argv[8].to_i            if 8 < argv.size
+    @eval_dir = [nil, nil]
+    @eval_dir[0] = argv[ 2]                 if  2 < argv.size
+    @eval_dir[1] = argv[ 3]                 if  3 < argv.size
+    @file        = File.open(argv[ 4], "a") if  4 < argv.size && argv[ 4] != '-'
+    thread_num   = argv[ 5].to_i            if  5 < argv.size
+    @game_num    = argv[ 6].to_i            if  6 < argv.size
+    @movetime    = argv[ 7]                 if  7 < argv.size
+    @win[0]      = argv[ 8].to_i            if  8 < argv.size
+    @win[1]      = argv[ 9].to_i            if  9 < argv.size
+    @draw        = argv[10].to_i            if 10 < argv.size
 
     @game_index = @win[0] + @win[1] + @draw
 
@@ -76,10 +79,11 @@ class GameManager
 
   # 対局時のエンジンの設定。必要であれば設定を変えて実験する。秒読みはスクリプト起動時の引数で設定出来る。
   def setoption engines
-    engines.each do |engine|
+    engines.each_with_index do |engine, i|
       engine.stdin.puts "setoption name Threads value 1"
       engine.stdin.puts "setoption name Byoyomi_Margin value 0"
       engine.stdin.puts "setoption name USI_Hash value 256"
+      engine.stdin.puts "setoption name Eval_Dir value #{@eval_dir[i]}" if @eval_dir[i] != '-'
     end
   end
 
@@ -149,7 +153,7 @@ class GameManager
       w, l, d = [@win[0], @win[1], @draw]
       win_r = win_rate(w, l, d)
       conf_interval = confidence_interval(w, l, d)
-      printf "(%5d/%5d) W: %5d L: %5d D: %5d  WR: %6.2f +-%6.2f\n", w + l + d, @game_num, w, l, d, (win_r*100).round(2), (conf_interval*100).round(2)
+      printf "(%5d/%5d) W: %5d L: %5d D: %5d  WR: %6.2f +-%6.2f Elo: %3d\n", w + l + d, @game_num, w, l, d, (win_r*100).round(2), (conf_interval*100).round(2), elo(win_r).to_i
       STDOUT.flush
     end
   end
@@ -168,13 +172,13 @@ class GameManager
 
   def elo wr
     return 0.0 if (wr <= 0.0)
-    rating = 400 * Math::log10(1/(wr) - 1)
+    rating = 400 * -Math::log10(1/(wr) - 1)
   end
 end
 
 def main argv
   if argv.size < 2
-    puts "USAGE: " + __FILE__ + " <engine1> <engine2> <output kifu file ('-' is no output)> <thread num> <game num> <movetime> <init win> <init lose> <init draw>"
+    puts "USAGE: " + __FILE__ + " <engine1> <engine2> <engine1 eval_dir ('-' is default)> <engine2 eval_dir ('-' is default)> <output kifu file ('-' is no output)> <thread num> <game num> <movetime> <init win> <init lose> <init draw>"
     puts "This program does selfplay matches."
     exit
   end
